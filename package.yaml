@@ -1,8 +1,8 @@
 name: granule-compiler
 version: '0.7.7.1'
 synopsis: The Granule compiler
-author: Dominic Orchard, Vilem-Benjamin Liepelt, Harley Eades III, Preston Keel
-copyright: 2018 authors
+author: Ed Brown, Dominic Orchard, Vilem-Benjamin Liepelt, Harley Eades III, Preston Keel
+copyright: 2018-2019 authors
 license: BSD3
 github: dorchard/granule
 dependencies:
@@ -35,10 +35,10 @@ library:
   - Language.Granule.Codegen.Emit.EmitLLVM
   - Language.Granule.Codegen.Compile
   dependencies:
+  - granule-frontend
   - mtl
   - text
   - containers
-  - granule-frontend
   - llvm-hs-pure >= 6.0
   - llvm-hs >= 6.0
 
