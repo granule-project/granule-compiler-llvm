@@ -34,6 +34,7 @@ library:
   - Language.Granule.Codegen.ConvertClosures
   - Language.Granule.Codegen.Emit.EmitLLVM
   - Language.Granule.Codegen.Compile
+  - Language.Granule.Codegen.MarkGlobals
   dependencies:
   - granule-frontend
   - mtl

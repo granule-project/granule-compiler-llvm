@@ -31,7 +31,7 @@ emitPattern successLabel failLabel matchOperand (PInt _ _ n) =
         condBr matches successLabel failLabel
 emitPattern successLabel failLabel matchOperand (PFloat _ _ n) =
     do
-        v <- IC.double n
+        let v = IC.double n
         matches <- fcmp FPP.UEQ v matchOperand
         condBr matches successLabel failLabel
 

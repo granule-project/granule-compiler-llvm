@@ -3,23 +3,17 @@ module Language.Granule.Codegen.TopsortDefinitionsSpec where
 
 import Test.Hspec hiding (Spec)
 import qualified Test.Hspec as Test
-import Test.QuickCheck
-import Language.Granule.Syntax.Def
-import Language.Granule.Syntax.Expr
 import Language.Granule.Syntax.Type ((.->), Type)
-import Language.Granule.Utils
 
 import Language.Granule.Codegen.NormalisedDef
 import Language.Granule.Codegen.TopsortDefinitions
 import Language.Granule.Codegen.MarkGlobals (GlobalMarker)
 import Language.Granule.Codegen.BuildAST
 
-import Debug.Trace
-
 spec :: Test.Spec
 spec = do
   describe "topsorting definitions" $ do
-    let ?globals = defaultGlobals
+    -- let ?globals = defaultGlobals
     it "identifies trivially recursive values" $ do
         let recursiveValueDef = (defval "x"
                                     ((val (gvar "x" int)) `plus` (val (var "add" int)))

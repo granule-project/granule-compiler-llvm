@@ -113,8 +113,8 @@ emitValue :: MonadFix m
 emitValue _ (PromoteF ty (_, emitEx)) = emitEx
 emitValue _ (PureF ty (_, emitEx)) = error "Let diamond not yet supported."
 emitValue _ (VarF ty ident) = local ident
-emitValue _ (NumIntF n) = IC.int32 (toInteger n)
-emitValue _ (NumFloatF n) = IC.double n
+emitValue _ (NumIntF n) = return $ IC.int32 (toInteger n)
+emitValue _ (NumFloatF n) = return $ IC.double n
 emitValue _ (CharLiteralF ch) =
     return $ IR.ConstantOperand (charConstant ch)
 emitValue _ (StringLiteralF str) =

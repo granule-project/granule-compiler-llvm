@@ -42,6 +42,10 @@ data ClosureFreeFunctionDef = ClosureFreeFunctionDef {
     closureFreeDefTypeScheme :: TypeScheme }
     deriving (Generic, Eq, Show)
 
+closureFreeDefType :: ClosureFreeFunctionDef -> Type
+closureFreeDefType ClosureFreeFunctionDef { closureFreeDefTypeScheme = ts } =
+    ty where (Forall _ _ _ ty) = ts
+
 type ClosureFreeExpr = Expr (Either GlobalMarker ClosureMarker) Type
 type ClosureFreeValue = Value (Either GlobalMarker ClosureMarker) Type
 type ClosureFreeValueDef = ValueDef (Either GlobalMarker ClosureMarker) Type

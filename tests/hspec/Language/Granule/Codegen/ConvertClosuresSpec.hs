@@ -4,18 +4,13 @@ module Language.Granule.Codegen.ConvertClosuresSpec where
 
 import Test.Hspec hiding (Spec)
 import qualified Test.Hspec as Test
-import Test.QuickCheck
 import Language.Granule.Codegen.ClosureFreeDef
 import Language.Granule.Codegen.ConvertClosures
-import Language.Granule.Syntax.Def
 import Language.Granule.Syntax.Expr
 import Language.Granule.Syntax.Pattern
 import Language.Granule.Syntax.Span
 import Language.Granule.Syntax.Identifiers
-import Language.Granule.Syntax.Pretty
 import Language.Granule.Syntax.Type hiding (var)
-import Language.Granule.Utils
-import Debug.Trace
 
 import Language.Granule.Codegen.BuildAST
 
@@ -35,8 +30,8 @@ makeClosure :: ClosureFreeFunctionDef
             -> ClosureFreeExpr
 makeClosure def envName inits =
     val $ Ext ty $ Right $ MakeClosure defIdent $ ClosureEnvironmentInit envName inits
-    where ty = definitionType def
-          defIdent = definitionIdentifier def
+    where ty = closureFreeDefType def
+          defIdent = closureFreeDefIdentifier def
 
 parent :: String -> Type -> Int -> ClosureVariableInit
 parent n ty i = FromParentEnv (mkId n) ty i
@@ -67,7 +62,7 @@ defclos name arg env bodyexpr ts =
 spec :: Test.Spec
 spec = do
   describe "closure conversion" $ do
-    let ?globals = defaultGlobals
+--    let ?globals = defaultGlobals
     it "works correctly for two arg add" $ do
         let original = normASTFromDefs
                             [defun "add" (arg "x" int)

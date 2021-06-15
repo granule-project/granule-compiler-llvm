@@ -67,6 +67,7 @@ caseexpr :: Expr ev Type -> [(Pattern Type, Expr ev Type)] -> Expr ev Type
 caseexpr swexp cases@((p,ex):_) =
     Case nullSpanNoFile ty swexp cases
     where ty = annotation ex
+caseexpr _ [] = error "caseexpr: expected non-empty list of cases"
 
 ppair :: Pattern Type -> Pattern Type -> Pattern Type
 ppair left right =
@@ -80,7 +81,7 @@ lambdaexp argument fnty body =
 plus :: Expr ev Type -> Expr ev Type -> Expr ev Type
 x `plus` y
     | xTy == yTy =
-        Binop nullSpanNoFile xTy "+" x y
+        Binop nullSpanNoFile xTy OpPlus x y
     | otherwise =
         error $ show xTy ++ " not equal to " ++ show yTy
     where (xTy, yTy) = (annotation x, annotation y)

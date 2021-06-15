@@ -127,7 +127,7 @@ run input = let ?globals = fromMaybe mempty (grGlobals <$> getEmbeddedGrFlags in
               Left (e :: String) ->
                 return $ Left $ CompileError e
               Right moduleAST -> do
-                withHostTargetMachine $ \machine ->
+                withHostTargetMachineDefault $ \machine ->
                   withContext $ \context ->
                     withModuleFromAST context moduleAST $ \mo -> do
                       writeBitcodeToFile (File (moduleName ++ ".bc")) mo

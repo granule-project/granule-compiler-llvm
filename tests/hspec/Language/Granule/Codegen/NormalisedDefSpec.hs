@@ -3,13 +3,9 @@ module Language.Granule.Codegen.NormalisedDefSpec where
 
 import Test.Hspec hiding (Spec)
 import qualified Test.Hspec as Test
-import Test.QuickCheck
 import Language.Granule.Codegen.NormalisedDef
-import Language.Granule.Syntax.Def
 import Language.Granule.Syntax.Expr
 import Language.Granule.Syntax.Type hiding (var)
-import Language.Granule.Utils
-import Debug.Trace
 
 import Language.Granule.Codegen.BuildAST
 
@@ -18,7 +14,7 @@ type NormalisedDef = Either (FunctionDef () Type) (ValueDef () Type)
 spec :: Test.Spec
 spec = do
   describe "normalising definitions" $ do
-    let ?globals = defaultGlobals
+--    let ?globals = defaultGlobals
     let x = (var "x" int)
     let y = (var "y" int)
     it "curries multi-arg definitions" $ do
