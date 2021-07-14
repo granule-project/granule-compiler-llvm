@@ -5,7 +5,7 @@ import Test.Hspec hiding (Spec)
 import qualified Test.Hspec as Test
 import Language.Granule.Codegen.NormalisedDef
 import Language.Granule.Syntax.Expr
-import Language.Granule.Syntax.Type hiding (var)
+import Language.Granule.Syntax.Type
 
 import Language.Granule.Codegen.BuildAST
 

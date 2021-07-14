@@ -10,7 +10,7 @@ import Language.Granule.Syntax.Expr
 import Language.Granule.Syntax.Pattern
 import Language.Granule.Syntax.Span
 import Language.Granule.Syntax.Identifiers
-import Language.Granule.Syntax.Type hiding (var)
+import Language.Granule.Syntax.Type
 
 import Language.Granule.Codegen.BuildAST
 
