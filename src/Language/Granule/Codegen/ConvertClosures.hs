@@ -56,7 +56,7 @@ convertClosuresInExpression globals locals =
     bicataPM (convertClosuresFromExpr, boundFromExpr)
              (convertClosuresFromValue, boundFromValue)
              (Nothing, Nothing, locals)
-    where boundFromExpr (Case _ _ _ arms) (x, y, bound) =
+    where boundFromExpr (Case _ _ _ _ arms) (x, y, bound) =
               (x, y, bound ++ boundByArms arms)
           boundFromExpr _ bound = bound
           boundFromValue (Abs _ arg _ body) (_, parentEnvironment, parentLocals) =
@@ -85,11 +85,11 @@ variableInitializer locals _ (ty, ident)
 variableInitializer _ (Just parentEnvironment) (ty, ident) =
     case findCaptureIndex parentEnvironment ident of
         Just n -> FromParentEnv ident ty n
-        Nothing -> error $ "Attempt to capture " ++ (show ident) ++
+        Nothing -> error $ "Attempt to capture " ++ show ident ++
                            " which is not in the parent environment or local scope."
 variableInitializer locals parentEnv var =
     error $ "Invalid combination of arguments to generate initializer \n"
-            ++ (show locals) ++ "\n" ++ (show parentEnv) ++ "\n" ++ (show var)
+            ++ show locals ++ "\n" ++ show parentEnv ++ "\n" ++ show var
 
 findCaptureIndex :: [ClosureVariableInit] -> Id -> Maybe Int
 findCaptureIndex env ident =
@@ -98,20 +98,19 @@ findCaptureIndex env ident =
           hasIdent (FromLocalScope i _)  = ident == i
 
 captures :: [Id] -> Expr GlobalMarker Type -> Set (Type, Id)
-captures locals ex =
-    bicataP (capturesInExpr, accumBoundExpr) (capturesInValue, accumBoundValue) locals ex
+captures = bicataP (capturesInExpr, accumBoundExpr) (capturesInValue, accumBoundValue)
     where capturesInExpr _ expr = bifold expr
           capturesInValue bound (VarF ty ident)
               | ident `elem` bound = Set.empty
               | otherwise = Set.singleton (ty, ident)
           capturesInValue _ val = bifold val
-          accumBoundValue (Abs _ arg _ expr) bound = bound ++ (boundVars arg)
+          accumBoundValue (Abs _ arg _ expr) bound = bound ++ boundVars arg
           -- NOTE: This marks all names bound by every match as bound in every arm.
           -- Which is not technically correct but should be ok because of the
           -- freshener.
           accumBoundValue _ bound = bound
-          accumBoundExpr (Case _ _ _ arms) bound = bound ++ boundByArms arms
-          accumBoundExpr (LetDiamond _ _ pattern _ _ _) bound = bound ++ (boundVars pattern)
+          accumBoundExpr (Case _ _ _ _ arms) bound = bound ++ boundByArms arms
+          accumBoundExpr (LetDiamond _ _ _ pat _ _ _) bound = bound ++ boundVars pat
           accumBoundExpr _ bound = bound
 
 
@@ -148,7 +147,7 @@ environmentType name maybeVariableInitializers =
 convertClosuresFromValue :: (Maybe [ClosureVariableInit], Maybe [ClosureVariableInit], [Id])
                          -> ValueF GlobalMarker Type ClosureFreeValue ClosureFreeExpr
                          -> LiftLambdaM ClosureFreeValue
-convertClosuresFromValue (_, maybeCurrentEnv, _) (AbsF ty@(FunTy _ _) arg mty expr) =
+convertClosuresFromValue (_, maybeCurrentEnv, _) (AbsF ty@FunTy {} arg mty expr) =
     do
         (lambdaIdent, envName) <- freshLambdaIdentifiers
         let lambdaTypeScheme = Forall nullSpanNoFile [] [] ty
@@ -161,11 +160,11 @@ convertClosuresFromValue (_, maybeCurrentEnv, _) (AbsF ty@(FunTy _ _) arg mty ex
                 Nothing  -> MakeTrivialClosure lambdaIdent
 
 convertClosuresFromValue (_, maybeCurrentEnv, locals) (VarF ty ident)
-    | (not $ ident `elem` locals) =
+    | ident `notElem` locals =
         let currentEnv = fromJust maybeCurrentEnv
             indexInEnv = fromMaybe errorMessage (findCaptureIndex currentEnv ident)
                          where errorMessage = error $ "Could not find captured variable "
-                                              ++ (sourceName ident) ++ " in environment."
+                                              ++ sourceName ident ++ " in environment."
         in return $ Ext ty (Right (CapturedVar ty ident indexInEnv))
 
 convertClosuresFromValue _ other =

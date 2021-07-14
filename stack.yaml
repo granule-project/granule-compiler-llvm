@@ -1,4 +1,4 @@
-resolver: lts-13.21
+resolver: lts-15.13
 
 packages:
 - '.'
@@ -8,9 +8,10 @@ extra-deps:
 - llvm-hs-pure-9.0.0
 - llvm-hs-9.0.1
 - text-replace-0.0.0.4
-- sbv-8.2
+- sbv-8.5
+- syz-0.2.0.0@sha256:7307acb8f6ae7720e7e235c974281ecee912703c1394ebcac19caf83d70bb492,2345
 - git: https://github.com/granule-project/granule
-  commit: f6b3b5d4cf220e211d15e706b8a9c5c5883d6f8a
+  commit: e6d8314b0e444eafe33a689e041a15590dcc69dd
   subdirs:
   - frontend
 

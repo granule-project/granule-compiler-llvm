@@ -113,8 +113,9 @@ normaliseDefinitions (AST dd defs imports _ _) =
 normaliseDefinition :: Def ev Type -> Either (FunctionDef ev Type) (ValueDef ev Type)
 normaliseDefinition def  =
     let singleEquationDef = makeSingleEquationWithCase def
-        equation          = normaliseEquation (head $ defEquations singleEquationDef)
-        normalisedDef     = singleEquationDef { defEquations = [equation] }
+        equationList      = defEquations singleEquationDef
+        equation          = normaliseEquation (head $ equations equationList)
+        normalisedDef     = singleEquationDef { defEquations = equationList { equations = [equation] } }
     in case normalisedDef of
            d | isValueDef d    -> Right $ toValueDef normalisedDef
            d | isFunctionDef d -> Left  $ toFunctionDef normalisedDef
@@ -124,12 +125,12 @@ isFunctionDef :: Def v a -> Bool
 isFunctionDef = not . isValueDef
 
 isValueDef :: Def v a -> Bool
-isValueDef Def { defEquations = [equation] } =
-    null $ equationArguments equation
+isValueDef Def { defEquations = EquationList { equations = [equation] } } =
+    null $ equationPatterns equation
 isValueDef _ = False
 
 toValueDef :: Def v a -> ValueDef v a
-toValueDef (Def sp ident [equation] ts) =
+toValueDef (Def sp ident _rf EquationList { equations = [equation] } ts) =
     ValueDef {
         valueDefSpan = sp,
         valueDefIdentifier = ident,
@@ -138,39 +139,40 @@ toValueDef (Def sp ident [equation] ts) =
 toValueDef _ = error "toValueDef requires Def with one equation"
 
 toFunctionDef :: Def ev a -> FunctionDef ev a
-toFunctionDef (Def sp ident [caseEquation] ts) =
+toFunctionDef (Def sp ident _rf EquationList { equations = [caseEquation] } ts) =
     FunctionDef {
         functionDefSpan = sp,
         functionDefIdentifier = ident,
         functionDefBody = equationBody caseEquation,
-        functionDefArgument = head $ equationArguments caseEquation,
+        functionDefArgument = head $ equationPatterns caseEquation,
         functionDefTypeScheme = ts }
 toFunctionDef _ = error "toFunctionDef requires Def with one equation"
 
 isTriviallyIrrefutable :: Pattern Type -> Bool
 isTriviallyIrrefutable
     = patternFold
-          (\_ _ _  -> True)         -- PVar
-          (\_ _    -> True)         -- PWild
-          (\_ _ ch -> True)         -- PBox
-          (\_ _ _  -> False)        -- PInt
-          (\_ _ _  -> False)        -- PFloat
-          (\_ _ _ args -> and args) -- PConstr
+          (\_ _ _ _  -> True)         -- PVar
+          (\_ _ _    -> True)         -- PWild
+          (\_ _ _ ch -> True)         -- PBox
+          (\_ _ _ _  -> False)        -- PInt
+          (\_ _ _ _  -> False)        -- PFloat
+          (\_ _ _ _ args -> and args) -- PConstr
 
 hasTriviallyIrrefutableMatch :: Equation ev Type -> Bool
-hasTriviallyIrrefutableMatch Equation { equationArguments = patterns }
+hasTriviallyIrrefutableMatch Equation { equationPatterns = patterns }
     = all isTriviallyIrrefutable patterns
 
 makeSingleEquationWithCase :: Def ev Type -> Def ev Type
-makeSingleEquationWithCase def@(Def sp ident [eq] ts)
+makeSingleEquationWithCase def@(Def sp ident _rf EquationList { equations = [eq] } ts)
     | hasTriviallyIrrefutableMatch eq = def
-makeSingleEquationWithCase def@(Def sp ident eqs ts) =
-    let equation = Equation sp (definitionType def) irrefutableArgs generatedCaseExpr
+makeSingleEquationWithCase def@(Def sp ident _rf eqs@EquationList { equations = eqls } ts) =
+    let equation = Equation sp eqIdent (definitionType def) False irrefutableArgs generatedCaseExpr
                    where irrefutableArgs     = makeIrrefutableArgs casePatterns
                          generatedCaseExpr   = makeCaseExpr irrefutableArgs (casePatterns, caseExprs)
-                         casePatterns        = map equationArguments eqs
-                         caseExprs           = map equationBody eqs
-    in def { defEquations = [equation] }
+                         casePatterns        = map equationPatterns eqls
+                         caseExprs           = map equationBody eqls
+                         eqIdent             = equationsId eqs
+    in def { defEquations = eqs { equations = [equation] } }
 
 makeIrrefutableArgs :: [[Pattern Type]] -> [Pattern Type]
 makeIrrefutableArgs patternLists =
@@ -181,8 +183,8 @@ makeIrrefutableArgs patternLists =
 patternForArg :: Int -> [Pattern Type] -> Pattern Type
 patternForArg n patterns =
     let patternTy = annotation $ head patterns
-        defaultPattern = PVar nullSpanNoFile patternTy (mkId $ "unnamed." ++ show n)
-        accumulateBestName irrefutablePat@(PVar _ _ ident) bestName = irrefutablePat
+        defaultPattern = PVar nullSpanNoFile patternTy False (mkId $ "unnamed." ++ show n)
+        accumulateBestName irrefutablePat@(PVar _ _ _ ident) bestName = irrefutablePat
         accumulateBestName reffutablePat bestName                   = bestName
     in foldr accumulateBestName defaultPattern patterns
 
@@ -190,7 +192,7 @@ makeCaseExpr :: [Pattern Type]
              -> ([[Pattern Type]], [Expr ev Type])
              -> Expr ev Type
 makeCaseExpr irrefutableArgPatterns (casePatterns, caseExprs) =
-    Case nullSpanNoFile ty (Val nullSpanNoFile (annotation sw) sw) branches
+    Case nullSpanNoFile ty False (Val nullSpanNoFile (annotation sw) False sw) branches
     where branches       = zip (map mergePatterns casePatterns) caseExprs
           ty             = annotation (head caseExprs)
           sw         = mergeArguments $ boundVarsAndAnnotations $
@@ -206,27 +208,27 @@ mergePatterns [] = error "One or more patterns required"
 
 mergeArguments :: [(Type, Id)] -> Value ev Type
 mergeArguments argumentsIds =
-  case map (\(ty, ident) -> Var ty ident) argumentsIds of
+  case map (uncurry Var) argumentsIds of
     firstArg:otherArgs -> foldl typedPair firstArg otherArgs
     _ -> error "Cannot merge less than two arguments"
 
 normaliseEquation :: Equation ev Type -> Equation ev Type
-normaliseEquation eq@Equation { equationArguments = [] } = tryHoistLambda eq
-normaliseEquation eq@Equation { equationArguments = [_] } = eq
+normaliseEquation eq@Equation { equationPatterns = [] } = tryHoistLambda eq
+normaliseEquation eq@Equation { equationPatterns = [_] } = eq
 normaliseEquation eq = curryEquation eq
 
 tryHoistLambda :: Equation ev Type -> Equation ev Type
-tryHoistLambda eq@Equation { equationBody = (Val _ _ (Abs _ arg _ ex)) } =
-    eq { equationArguments = [arg], equationBody = ex }
+tryHoistLambda eq@Equation { equationBody = (Val _ _ _ (Abs _ arg _ ex)) } =
+    eq { equationPatterns = [arg], equationBody = ex }
 tryHoistLambda def = def
 
 curryEquation :: Equation ev Type -> Equation ev Type
 curryEquation eq =
-    case equationArguments eq of
+    case equationPatterns eq of
       eqArg:otherArgs ->
         let body = equationBody eq
-            body' = argsToLambda otherArgs body (equationType eq)
-        in eq { equationArguments = [eqArg], equationBody = body' }
+            body' = argsToLambda otherArgs body (equationAnnotation eq)
+        in eq { equationPatterns = [eqArg], equationBody = body' }
       [] -> error "Cannot curry no-arg equation"
 
 argsToLambda :: [Pattern Type] -> Expr ev Type -> Type -> Expr ev Type
@@ -234,5 +236,5 @@ argsToLambda args originalBody ty =
     foldr wrapInLambda originalBody args
     where sp = getSpan originalBody
           wrapInLambda arg body = let bodyType = annotation body
-                                      absType = FunTy (annotation arg) bodyType
-                                  in Val sp absType (Abs absType arg Nothing body)
+                                      absType = funTy (annotation arg) bodyType
+                                  in Val sp absType False (Abs absType arg Nothing body)

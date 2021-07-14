@@ -2,7 +2,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 module Language.Granule.Codegen.Emit.LowerPatterns where
 
-import Control.Monad.Fix (MonadFix)
 import Control.Monad.State.Strict hiding (void)
 
 import Language.Granule.Syntax.Pattern
@@ -25,25 +24,25 @@ emitPattern :: (MonadState EmitterState m, MonadFix m, MonadIRBuilder m)
             -> Operand
             -> Pattern GrType
             -> m ()
-emitPattern successLabel failLabel matchOperand (PInt _ _ n) =
+emitPattern successLabel failLabel matchOperand (PInt _ _ _ n) =
     do
         matches <- icmp IP.EQ (IR.ConstantOperand $ intConstant n) matchOperand
         condBr matches successLabel failLabel
-emitPattern successLabel failLabel matchOperand (PFloat _ _ n) =
+emitPattern successLabel failLabel matchOperand (PFloat _ _ _ n) =
     do
         let v = IC.double n
         matches <- fcmp FPP.UEQ v matchOperand
         condBr matches successLabel failLabel
 
-emitPattern successLabel failLabel matchOperand (PVar _ _ ident) =
+emitPattern successLabel failLabel matchOperand (PVar _ _ _ ident) =
     do
         addLocal ident matchOperand
         br successLabel
 
-emitPattern successLabel failLabel matchOperand (PBox _ ty pattern) =
-    emitPattern successLabel failLabel matchOperand pattern
+emitPattern successLabel failLabel matchOperand (PBox _ _ ty pat) =
+    emitPattern successLabel failLabel matchOperand pat
 
-emitPattern _ pattern _ _ = error $ "Unsupported pattern: " ++ (show pattern)
+emitPattern _ pat _ _ = error $ "Unsupported pattern: " ++ show pat
 
 emitCaseArm :: (MonadState EmitterState m, MonadFix m, MonadIRBuilder m)
             => Operand

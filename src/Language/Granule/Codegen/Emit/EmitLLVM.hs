@@ -2,10 +2,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 module Language.Granule.Codegen.Emit.EmitLLVM where
 
-import LLVM.AST.Type (i8, i32, i64, ptr, void)
---import LLVM.AST.Typed
 import qualified LLVM.AST as IR
---import qualified LLVM.AST.Float as F
 
 import LLVM.AST (Operand, mkName)
 import LLVM.AST.Constant (Constant(..))
@@ -38,7 +35,6 @@ import qualified Data.Map.Strict as Map
 
 import Control.Monad.Fix
 import Control.Monad.State.Strict hiding (void)
---import Debug.Trace
 
 
 externWriteInt :: (MonadModuleBuilder m) => m Operand
@@ -118,7 +114,7 @@ emitFunction :: (MonadState EmitterState m, MonadModuleBuilder m, MonadFix m)
              -> Pattern GrType
              -> GrType
              -> m Operand
-emitFunction ident maybeEnvironmentType body argument (FunTy from to) =
+emitFunction ident maybeEnvironmentType body argument (FunTy _ from to) =
     do
         let parameterId = head $ boundVars argument
         let parameterName = parameterNameFromId parameterId

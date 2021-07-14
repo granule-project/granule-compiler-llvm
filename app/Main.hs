@@ -26,7 +26,6 @@ import Data.List (intercalate, isPrefixOf, stripPrefix)
 import Data.List.Extra (breakOn)
 import Data.List.NonEmpty (NonEmpty, toList)
 import Data.Maybe (fromMaybe)
-import Data.Semigroup ((<>))
 import Data.Version (showVersion)
 import System.Exit
 
@@ -62,11 +61,11 @@ main = do
 runGrOnFiles :: [FilePath] -> GrConfig -> IO ()
 runGrOnFiles globPatterns config = let ?globals = grGlobals config in do
     pwd <- getCurrentDirectory
-    results <- forM globPatterns $ \pattern -> do
-      paths <- glob pattern
+    results <- forM globPatterns $ \pat -> do
+      paths <- glob pat
       case paths of
         [] -> do
-          let result = Left $ NoMatchingFiles pattern
+          let result = Left $ NoMatchingFiles pat
           printResult result
           return [result]
         _ -> forM paths $ \path -> do
@@ -107,7 +106,7 @@ run
   :: (?globals :: Globals)
   => String
   -> IO (Either CompileError CompileResult)
-run input = let ?globals = fromMaybe mempty (grGlobals <$> getEmbeddedGrFlags input) <> ?globals in do
+run input = let ?globals = maybe mempty grGlobals (getEmbeddedGrFlags input) <> ?globals in do
     result <- try $ parseAndDoImportsAndFreshenDefs input
     case result of
       Left (e :: SomeException) -> return . Left . ParseError $ show e
@@ -120,9 +119,9 @@ run input = let ?globals = fromMaybe mempty (grGlobals <$> getEmbeddedGrFlags in
         case checked of
           Left (e :: SomeException) -> return .  Left . FatalError $ displayException e
           Right (Left errs) -> return . Left $ CheckerError errs
-          Right (Right ast') -> do
+          Right (Right (ast',_)) -> do
             printSuccess "OK, compiling..."
-            let moduleName = takeBaseName $ sourceFilePath
+            let moduleName = takeBaseName sourceFilePath
             case compile moduleName ast' of
               Left (e :: String) ->
                 return $ Left $ CompileError e
@@ -132,16 +131,14 @@ run input = let ?globals = fromMaybe mempty (grGlobals <$> getEmbeddedGrFlags in
                     withModuleFromAST context moduleAST $ \mo -> do
                       writeBitcodeToFile (File (moduleName ++ ".bc")) mo
                       writeObjectToFile machine (File (moduleName ++ ".o")) mo
-                return $ Right $ CompileSuccess
+                return $ Right CompileSuccess
 
 
 -- | Get the flags embedded in the first line of a file, e.g.
 -- "-- gr --no-eval"
 getEmbeddedGrFlags :: String -> Maybe GrConfig
 getEmbeddedGrFlags
-  = foldr (<|>) Nothing
-  . map getEmbeddedGrFlagsLine
-  . take 3 -- only check for flags within the top 3 lines (so they are visible and at the top)
+  = foldr ((<|>) . getEmbeddedGrFlagsLine) Nothing . take 3 -- only check for flags within the top 3 lines (so they are visible and at the top)
   . lines
   where
     getEmbeddedGrFlagsLine
@@ -299,6 +296,43 @@ parseGrConfig = info (go <**> helper) $ briefDesc
             <> help ("Program entry point. Defaults to " <> show entryPoint)
             <> metavar "ID"
 
+        globalsRewriteHoles <-
+          flag Nothing (Just True)
+            $ long "rewrite-holes"
+            <> help "WARNING: Destructively overwrite equations containing holes to pattern match on generated case-splits."
+
+        globalsHoleLine <-
+          optional . option (auto @Int)
+            $ long "hole-line"
+            <> help "The line where the hole you wish to rewrite is located."
+            <> metavar "LINE"
+
+        globalsHoleCol <-
+          optional . option (auto @Int)
+            $ long "hole-column"
+            <> help "The column where the hole you wish to rewrite is located."
+            <> metavar "COL"
+
+        globalsSynthesise <-
+          flag Nothing (Just True)
+            $ long "synthesise"
+            <> help "Turn on program synthesis. Must be used in conjunction with hole-line and hole-column"
+
+        globalsIgnoreHoles <-
+          flag Nothing (Just True)
+            $ long "ignore-holes"
+            <> help "Suppress information from holes (treat holes as well-typed)"
+
+        globalsSubtractiveSynthesis <-
+          flag Nothing (Just True)
+           $ long "subtractive"
+            <> help "Use subtractive mode for synthesis, rather than additive (default)."
+
+        globalsAlternateSynthesisMode <-
+          flag Nothing (Just True)
+           $ long "alternate"
+            <> help "Use alternate mode for synthesis (subtractive divisive, additive naive)"
+
         grRewriter
           <- flag'
             (Just asciiToUnicode)
@@ -318,6 +352,16 @@ parseGrConfig = info (go <**> helper) $ briefDesc
             <> help ("Name of the code environment to check in literate files. Defaults to "
                     <> show (literateEnvName mempty))
 
+        globalsBenchmark <-
+          flag Nothing (Just True)
+           $ long "benchmark"
+           <> help "Compute benchmarking results for the synthesis procedure."
+
+        globalsBenchmarkRaw <-
+          flag Nothing (Just True)
+           $ long "raw-data"
+           <> help "Show raw data of benchmarking data for synthesis."
+
         pure
           ( globPatterns
           , GrConfig
@@ -331,12 +375,20 @@ parseGrConfig = info (go <**> helper) $ briefDesc
               , globalsNoEval
               , globalsSuppressInfos
               , globalsSuppressErrors
+              , globalsIgnoreHoles
               , globalsTimestamp
               , globalsTesting = Nothing
               , globalsSolverTimeoutMillis
               , globalsIncludePath
               , globalsSourceFilePath = Nothing
               , globalsEntryPoint
+              , globalsRewriteHoles
+              , globalsHolePosition = (,) <$> globalsHoleLine <*> globalsHoleCol
+              , globalsSynthesise
+              , globalsBenchmark
+              , globalsBenchmarkRaw
+              , globalsSubtractiveSynthesis
+              , globalsAlternateSynthesisMode
               }
             }
           )

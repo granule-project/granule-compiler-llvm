@@ -4,7 +4,6 @@ import Language.Granule.Syntax.Expr
 import Language.Granule.Syntax.Type
 import Language.Granule.Syntax.Identifiers
 import Language.Granule.Syntax.Pretty
-import Language.Granule.Codegen.NormalisedDef (functionDefIdentifier, valueDefIdentifier)
 import Data.Bifunctor.Foldable
 
 data GlobalMarker =
@@ -39,12 +38,14 @@ markGlobalsInExpr globals =
               fixMapExtValue (\ty ev -> error "Extension value in AST before global marking.") other
 
 fixMapExtExpr :: ExprF eva a (Expr evb a) (Value evb a) -> Expr evb a
-fixMapExtExpr (AppF sp ty fn arg) = App sp ty fn arg
-fixMapExtExpr (BinopF sp ty op lhs rhs) = Binop sp ty op lhs rhs
-fixMapExtExpr (LetDiamondF sp ty pat mty now next) = LetDiamond sp ty pat mty now next
-fixMapExtExpr (ValF sp ty val) = Val sp ty val
-fixMapExtExpr (CaseF sp ty swexp arms) = Case sp ty swexp arms
-fixMapExtExpr (HoleF sp ty) = Hole sp ty
+fixMapExtExpr (AppF sp ty rf fn arg) = App sp ty rf fn arg
+fixMapExtExpr (BinopF sp ty rf op lhs rhs) = Binop sp ty rf op lhs rhs
+fixMapExtExpr (LetDiamondF sp ty rf pat mty now next) = LetDiamond sp ty rf pat mty now next
+fixMapExtExpr (ValF sp ty rf val) = Val sp ty rf val
+fixMapExtExpr (CaseF sp ty rf swexp arms) = Case sp ty rf swexp arms
+fixMapExtExpr (HoleF sp ty rf ids) = Hole sp ty rf ids
+fixMapExtExpr (AppTyF sp ty rf fn tye) = AppTy sp ty rf fn tye
+fixMapExtExpr (TryCatchF sp ty rf e1 pt mty e2 e3) = TryCatch sp ty rf e1 pt mty e2 e3
 
 fixMapExtValue :: (a -> eva -> Value evb a)
                -> ValueF eva a (Value evb a) (Expr evb a)

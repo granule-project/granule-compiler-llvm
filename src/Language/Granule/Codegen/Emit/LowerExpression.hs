@@ -19,7 +19,6 @@ import Language.Granule.Syntax.Annotated (annotation)
 import Language.Granule.Syntax.Type as GRType
 
 import Control.Monad.State.Strict hiding (void)
-import Control.Monad.Fix (MonadFix)
 import Data.Foldable (foldrM)
 import Data.Bifunctor.Foldable
 import Data.Text (unpack)
@@ -49,7 +48,7 @@ emitExpr :: (MonadState EmitterState m, MonadIRBuilder m, MonadFix m)
          => Maybe Operand
          -> ExprF (Either GlobalMarker ClosureMarker) Type (EmitableExpr, m Operand) (EmitableValue, m Operand)
          -> m Operand
-emitExpr environment (AppF _ ty (_, emitFunction) (_, emitArg)) =
+emitExpr environment (AppF _ ty _ (_, emitFunction) (_, emitArg)) =
     do
         closure <- emitFunction
         argument <- emitArg
@@ -57,18 +56,24 @@ emitExpr environment (AppF _ ty (_, emitFunction) (_, emitArg)) =
         environmentPtr <- extractValue closure [1]
         call functionPtr [(environmentPtr, []), (argument, [])]
 
-emitExpr environment (BinopF _ rTy op (lhs, emitLHS) (rhs, emitRHS)) =
+emitExpr environment (BinopF _ rTy _ op (lhs, emitLHS) (rhs, emitRHS)) =
     do
         lhsArgument <- emitLHS; rhsArgument <- emitRHS
         let operator = llvmOperator (annotation lhs) op (annotation rhs) rTy
         operator lhsArgument rhsArgument
 
-emitExpr environment (LetDiamondF _ ty pat mty (now, emitNow) (next, emitNext)) =
+emitExpr environment (LetDiamondF _ ty _ pat mty (now, emitNow) (next, emitNext)) =
     error "Let diamond not yet supported."
 
-emitExpr environment (ValF _ ty (_, emitValue)) = emitValue
+emitExpr environment AppTyF {} =
+    error "LowerExpression TODO: AppTyF"
 
-emitExpr environment (CaseF _ ty (swon, emitSwExpr) cases) =
+emitExpr environment TryCatchF {} =
+    error "LowerExpression TODO: TryCatchF"
+
+emitExpr environment (ValF _ ty _ (_, emitValue)) = emitValue
+
+emitExpr environment (CaseF _ ty _ (swon, emitSwExpr) cases) =
     mdo
         resultStorage <- alloca (llvmType ty) Nothing 4
         switchOnExpr <- emitSwExpr
@@ -99,8 +104,8 @@ emitExpr environment (CaseF _ ty (swon, emitSwExpr) cases) =
 
            tryFirstPattern <- foldrM (makeJump switchOnExpr successLabel) cases -}
 
--- The following case should now really be possible because holes stop the type checker.
-emitExpr environment (HoleF _ _) = error "Trying to compile a hole"
+-- The following case should not really be possible because holes stop the type checker.
+emitExpr environment HoleF {} = error "Trying to compile a hole"
 
 emitValue :: MonadFix m
           => MonadState EmitterState m
@@ -141,7 +146,7 @@ emitValue environment (ExtF ty (ADTMarker adt)) =
             -- Only Tag, No data this case probably falls out automatically.
           emitADT (Constructor n variant (v:vs)) =
 -}
-emitValue _ (AbsF _ _ _ _) =
+emitValue _ (AbsF {}) =
     error "Encountered Abs. It should have been removed by closure conversion."
 {-    do
 emitValue _ (ConstrF ty (MkId "(,)") []) =
@@ -150,5 +155,5 @@ emitValue _ (ConstrF ty (MkId "(,)") []) =
     emitEnvironmentInit variableInitializers environmentTypedPtr maybeParentEnv
     emitClosureConstruction ident ty environmentVoidPtr -}
 
-emitValue _ (ConstrF _ _ _) =
+emitValue _ (ConstrF {}) =
     error "Encountered Constr. It should have been removed by constructor conversion."

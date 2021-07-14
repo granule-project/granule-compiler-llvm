@@ -40,7 +40,7 @@ If it is a definition type it should be
 For the former use `llvmSubType`, for the latter use `llvmTopLevelType`
 |-}
 llvmType :: GrType -> IrType
-llvmType (FunTy from to) =
+llvmType (FunTy _ from to) =
     llvmTypeForClosure $ llvmTypeForFunction (llvmType from) (llvmType to)
 llvmType (TyApp (TyApp (TyCon (MkId "(,)")) left) right) =
     StructureType False [llvmType left, llvmType right]
@@ -53,5 +53,5 @@ llvmType (Box coeffect ty) = llvmType ty
 llvmType ty = error $ "Cannot lower the type " ++ show ty
 
 llvmTopLevelType :: GrType -> IrType
-llvmTopLevelType (FunTy from to) = llvmTypeForFunction (llvmType from) (llvmType to)
+llvmTopLevelType (FunTy _ from to) = llvmTypeForFunction (llvmType from) (llvmType to)
 llvmTopLevelType other = llvmType other
