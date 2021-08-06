@@ -11,7 +11,7 @@ extra-deps:
 - sbv-8.5
 - syz-0.2.0.0@sha256:7307acb8f6ae7720e7e235c974281ecee912703c1394ebcac19caf83d70bb492,2345
 - git: https://github.com/granule-project/granule
-  commit: e6d8314b0e444eafe33a689e041a15590dcc69dd
+  commit: 26f37f0f97861ea14bd1b409c672a1519ce16a95
   subdirs:
   - frontend
 

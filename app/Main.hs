@@ -110,7 +110,9 @@ run input = let ?globals = maybe mempty grGlobals (getEmbeddedGrFlags input) <> 
     result <- try $ parseAndDoImportsAndFreshenDefs input
     case result of
       Left (e :: SomeException) -> return . Left . ParseError $ show e
-      Right ast -> do
+      Right (ast, extensions) ->
+        -- update globals with extensions
+        let ?globals = ?globals { globalsExtensions = extensions } in do
         -- Print to terminal when in debugging mode:
         debugM "Pretty-printed AST:" $ pretty ast
         debugM "Raw AST:" $ show ast
@@ -389,6 +391,7 @@ parseGrConfig = info (go <**> helper) $ briefDesc
               , globalsBenchmarkRaw
               , globalsSubtractiveSynthesis
               , globalsAlternateSynthesisMode
+              , globalsExtensions = []
               }
             }
           )
