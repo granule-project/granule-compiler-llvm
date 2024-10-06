@@ -44,7 +44,6 @@ import Language.Granule.Checker.Checker
 import Language.Granule.Checker.Monad (CheckerError)
 import Language.Granule.Codegen.Compile (compile)
 import Language.Granule.Syntax.Preprocessor
-import Language.Granule.Syntax.Preprocessor.Ascii
 import Language.Granule.Syntax.Parser
 import Language.Granule.Syntax.Pretty
 import Language.Granule.Utils
@@ -156,13 +155,13 @@ parseGrFlags
 
 
 data GrConfig = GrConfig
-  { grRewriter    :: Maybe (String -> String)
+  { grRewriter    :: Maybe (Rewriter)
   , grKeepBackup      :: Maybe Bool
   , grLiterateEnvName :: Maybe String
   , grGlobals         :: Globals
   }
 
-rewriter :: GrConfig -> Maybe (String -> String)
+rewriter :: GrConfig -> Maybe (Rewriter)
 rewriter c = grRewriter c <|> Nothing
 
 keepBackup :: GrConfig -> Bool
@@ -337,10 +336,10 @@ parseGrConfig = info (go <**> helper) $ briefDesc
 
         grRewriter
           <- flag'
-            (Just asciiToUnicode)
+            (Just AsciiToUnicode)
             (long "ascii-to-unicode" <> help "WARNING: Destructively overwrite ascii characters to multi-byte unicode.")
           <|> flag Nothing
-            (Just unicodeToAscii)
+            (Just UnicodeToAscii)
             (long "unicode-to-ascii" <> help "WARNING: Destructively overwrite multi-byte unicode to ascii.")
 
         grKeepBackup <-
@@ -363,6 +362,39 @@ parseGrConfig = info (go <**> helper) $ briefDesc
           flag Nothing (Just True)
            $ long "raw-data"
            <> help "Show raw data of benchmarking data for synthesis."
+        
+        globalsInteractiveDebugging <-
+            flag Nothing (Just True)
+            $ long "interactive"
+            <> help "Interactive debug mode (for synthesis)"
+        
+        globalsHaskellSynth <-
+            flag Nothing (Just True)
+            $ long "linear-haskell"
+            <> help "Synthesise Linear Haskell programs"
+        
+        globalsSynthHtml <-
+            flag Nothing (Just True)
+            $ long "synth-html"
+            <> help "Output synthesis tree as HTML file"
+        
+        globalsExampleLimit <-
+            optional . option (auto @Int)
+            $ long "example-limit"
+            <> (help . unwords)
+            [ "Limit to the number of times synthed terms should be tried on examples before giving up"
+            , "Defaults to"
+            , show exampleLimit <> ""
+            ]
+        
+        globalsCartesianSynth <-
+            optional . option (auto @Int)
+            $ long "cart-synth"
+            <> (help . unwords)
+            [ "Synthesise using the cartesian semiring (for benchmarking)"
+            , "Defaults to"
+            , show cartSynth <> ""
+            ]
 
         pure
           ( globPatterns
@@ -392,6 +424,12 @@ parseGrConfig = info (go <**> helper) $ briefDesc
               , globalsSubtractiveSynthesis
               , globalsAlternateSynthesisMode
               , globalsExtensions = []
+              , globalsInteractiveDebugging
+              , globalsHaskellSynth
+              , globalsSynthHtml
+              , globalsExampleLimit
+              , globalsCartesianSynth
+              , globalsDocMode = Nothing
               }
             }
           )

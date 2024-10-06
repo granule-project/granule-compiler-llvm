@@ -43,9 +43,10 @@ fixMapExtExpr (BinopF sp ty rf op lhs rhs) = Binop sp ty rf op lhs rhs
 fixMapExtExpr (LetDiamondF sp ty rf pat mty now next) = LetDiamond sp ty rf pat mty now next
 fixMapExtExpr (ValF sp ty rf val) = Val sp ty rf val
 fixMapExtExpr (CaseF sp ty rf swexp arms) = Case sp ty rf swexp arms
-fixMapExtExpr (HoleF sp ty rf ids) = Hole sp ty rf ids
+fixMapExtExpr (HoleF sp ty rf ids hints) = Hole sp ty rf ids hints
 fixMapExtExpr (AppTyF sp ty rf fn tye) = AppTy sp ty rf fn tye
 fixMapExtExpr (TryCatchF sp ty rf e1 pt mty e2 e3) = TryCatch sp ty rf e1 pt mty e2 e3
+fixMapExtExpr (UnpackF sp ty rf id1 id2 e1 e2) = Unpack sp ty rf id1 id2 e1 e2
 
 fixMapExtValue :: (a -> eva -> Value evb a)
                -> ValueF eva a (Value evb a) (Expr evb a)
@@ -60,3 +61,6 @@ fixMapExtValue f (NumFloatF n) = NumFloat n
 fixMapExtValue f (CharLiteralF ch) = CharLiteral ch
 fixMapExtValue f (StringLiteralF txt) = StringLiteral txt
 fixMapExtValue f (ExtF ty ev) = f ty ev
+fixMapExtValue f (NecF ty ex) = Nec ty ex
+fixMapExtValue f (PackF sp ty t1 ex ident k t2) = Pack sp ty t1 ex ident k t2
+fixMapExtValue f (TyAbsF ty idents e) = TyAbs ty idents e

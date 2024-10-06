@@ -23,7 +23,7 @@ ghc-options:
 - -Wno-unused-matches
 - -Wno-name-shadowing
 - -Wno-type-defaults
-- -fmax-pmcheck-iterations=10000000
+- -fmax-pmcheck-models=10000000
 
 library:
   source-dirs: src

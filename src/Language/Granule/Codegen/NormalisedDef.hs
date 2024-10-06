@@ -130,7 +130,7 @@ isValueDef Def { defEquations = EquationList { equations = [equation] } } =
 isValueDef _ = False
 
 toValueDef :: Def v a -> ValueDef v a
-toValueDef (Def sp ident _rf EquationList { equations = [equation] } ts) =
+toValueDef (Def sp ident _rf _spec EquationList { equations = [equation] } ts) =
     ValueDef {
         valueDefSpan = sp,
         valueDefIdentifier = ident,
@@ -139,7 +139,7 @@ toValueDef (Def sp ident _rf EquationList { equations = [equation] } ts) =
 toValueDef _ = error "toValueDef requires Def with one equation"
 
 toFunctionDef :: Def ev a -> FunctionDef ev a
-toFunctionDef (Def sp ident _rf EquationList { equations = [caseEquation] } ts) =
+toFunctionDef (Def sp ident _rf _spec EquationList { equations = [caseEquation] } ts) =
     FunctionDef {
         functionDefSpan = sp,
         functionDefIdentifier = ident,
@@ -156,16 +156,16 @@ isTriviallyIrrefutable
           (\_ _ _ ch -> True)         -- PBox
           (\_ _ _ _  -> False)        -- PInt
           (\_ _ _ _  -> False)        -- PFloat
-          (\_ _ _ _ args -> and args) -- PConstr
+          (\_ _ _ _ _ args -> and args) -- PConstr
 
 hasTriviallyIrrefutableMatch :: Equation ev Type -> Bool
 hasTriviallyIrrefutableMatch Equation { equationPatterns = patterns }
     = all isTriviallyIrrefutable patterns
 
 makeSingleEquationWithCase :: Def ev Type -> Def ev Type
-makeSingleEquationWithCase def@(Def sp ident _rf EquationList { equations = [eq] } ts)
+makeSingleEquationWithCase def@(Def sp ident _rf _spec EquationList { equations = [eq] } ts)
     | hasTriviallyIrrefutableMatch eq = def
-makeSingleEquationWithCase def@(Def sp ident _rf eqs@EquationList { equations = eqls } ts) =
+makeSingleEquationWithCase def@(Def sp ident _rf _spec eqs@EquationList { equations = eqls } ts) =
     let equation = Equation sp eqIdent (definitionType def) False irrefutableArgs generatedCaseExpr
                    where irrefutableArgs     = makeIrrefutableArgs casePatterns
                          generatedCaseExpr   = makeCaseExpr irrefutableArgs (casePatterns, caseExprs)

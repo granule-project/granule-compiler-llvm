@@ -41,7 +41,7 @@ tts ty = Forall nullSpanNoFile [] [] ty
 app :: Expr ev Type -> Expr ev Type -> Expr ev Type
 app f x =
     App nullSpanNoFile retTy False f x
-    where (FunTy _ _ retTy) = annotation f
+    where (FunTy _ _ _ retTy) = annotation f
 
 defval :: String -> Expr ev Type -> TypeScheme -> ValueDef ev Type
 defval name initexpr ts =
@@ -53,7 +53,7 @@ defun name arg bodyexpr ts =
 
 def :: String -> [Pattern Type] -> Expr ev Type -> TypeScheme -> Def ev Type
 def name args bodyexpr ts =
-    Def nullSpanNoFile nam False eqls ts
+    Def nullSpanNoFile nam False Nothing eqls ts
     where equation = Equation nullSpanNoFile nam ty False args bodyexpr
           eqls     = EquationList nullSpanNoFile nam False [equation]
           nam      = mkId name
@@ -61,7 +61,7 @@ def name args bodyexpr ts =
 
 casedef :: String -> [([Pattern Type], Expr ev Type)] -> TypeScheme -> Def ev Type
 casedef name cases ts =
-    Def nullSpanNoFile nam  False eqls ts
+    Def nullSpanNoFile nam False Nothing eqls ts
     where equation (args, bodyexpr) = Equation nullSpanNoFile nam ty False args bodyexpr
           eqls = EquationList nullSpanNoFile nam False (equation <$> cases)
           nam = mkId name
@@ -75,7 +75,7 @@ caseexpr _ [] = error "caseexpr: expected non-empty list of cases"
 
 ppair :: Pattern Type -> Pattern Type -> Pattern Type
 ppair left right =
-    PConstr nullSpanNoFile ty False (mkId "(,)") [left, right]
+    PConstr nullSpanNoFile ty False (mkId "(,)") [] [left, right]
     where ty = pairType (annotation left) (annotation right)
 
 lambdaexp :: Pattern Type -> Type -> Expr ev Type -> Expr ev Type
