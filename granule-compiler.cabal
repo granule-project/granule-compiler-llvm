@@ -5,19 +5,19 @@ cabal-version: 1.12
 -- see: https://github.com/sol/hpack
 
 name:           granule-compiler
-version:        0.7.7.1
+version:        0.9.5.0
 synopsis:       The Granule compiler
-homepage:       https://github.com/dorchard/granule#readme
-bug-reports:    https://github.com/dorchard/granule/issues
+homepage:       https://github.com/granule-project/granule-compiler-llvm#readme
+bug-reports:    https://github.com/granule-project/granule-compiler-llvm/issues
 author:         Ed Brown, Dominic Orchard, Vilem-Benjamin Liepelt, Harley Eades III, Preston Keel
 maintainer:     Ed Brown, Dominic Orchard, Vilem-Benjamin Liepelt, Harley Eades III, Preston Keel
-copyright:      2018-2019 authors
+copyright:      2018-2024 authors
 license:        BSD3
 build-type:     Simple
 
 source-repository head
   type: git
-  location: https://github.com/dorchard/granule
+  location: https://github.com/granule-project/granule-compiler-llvm
 
 library
   exposed-modules:
