@@ -1,4 +1,4 @@
-resolver: lts-15.13
+resolver: lts-18.28
 
 packages:
 - '.'
@@ -7,13 +7,15 @@ extra-deps:
 - ConfigFile-1.1.4
 - llvm-hs-pure-9.0.0
 - llvm-hs-9.0.1
-- text-replace-0.0.0.4
-- sbv-8.5
+- text-replace-0.1.0.3
+- sbv-9.0
 - syz-0.2.0.0@sha256:7307acb8f6ae7720e7e235c974281ecee912703c1394ebcac19caf83d70bb492,2345
 - git: https://github.com/granule-project/granule
-  commit: 26f37f0f97861ea14bd1b409c672a1519ce16a95
+  commit: 83bdac01ffe56c756fe7bfd6fd88a55577e37aa6 # 0.9.5.0
   subdirs:
   - frontend
+- git: https://github.com/jackohughes/haskell-src-exts
+  commit: 5c2647fa0746bdac046897f5a6b7e4f5ef3afa79
 
 
 

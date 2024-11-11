@@ -104,6 +104,8 @@ emitExpr environment (CaseF _ ty _ (swon, emitSwExpr) cases) =
 
            tryFirstPattern <- foldrM (makeJump switchOnExpr successLabel) cases -}
 
+emitExpr environment UnpackF {} = error "Unpack not supported"
+
 -- The following case should not really be possible because holes stop the type checker.
 emitExpr environment HoleF {} = error "Trying to compile a hole"
 
@@ -157,3 +159,12 @@ emitValue _ (ConstrF ty (MkId "(,)") []) =
 
 emitValue _ (ConstrF {}) =
     error "Encountered Constr. It should have been removed by constructor conversion."
+
+emitValue _ (NecF {}) =
+    error "NecF not supported"
+
+emitValue _ (PackF {}) =
+    error "PackF not supported"
+
+emitValue _ (TyAbsF {}) =
+    error "TyAbsF not supported"

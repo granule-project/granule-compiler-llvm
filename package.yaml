@@ -1,10 +1,10 @@
 name: granule-compiler
-version: '0.7.7.1'
+version: '0.9.5.0'
 synopsis: The Granule compiler
 author: Ed Brown, Dominic Orchard, Vilem-Benjamin Liepelt, Harley Eades III, Preston Keel
-copyright: 2018-2019 authors
+copyright: 2018-2024 authors
 license: BSD3
-github: dorchard/granule
+github: granule-project/granule-compiler-llvm
 dependencies:
 - base >=4.10 && <5
 default-extensions:
@@ -23,7 +23,7 @@ ghc-options:
 - -Wno-unused-matches
 - -Wno-name-shadowing
 - -Wno-type-defaults
-- -fmax-pmcheck-iterations=10000000
+- -fmax-pmcheck-models=10000000
 
 library:
   source-dirs: src

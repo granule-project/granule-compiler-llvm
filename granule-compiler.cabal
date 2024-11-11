@@ -1,0 +1,120 @@
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.37.0.
+--
+-- see: https://github.com/sol/hpack
+
+name:           granule-compiler
+version:        0.9.5.0
+synopsis:       The Granule compiler
+homepage:       https://github.com/granule-project/granule-compiler-llvm#readme
+bug-reports:    https://github.com/granule-project/granule-compiler-llvm/issues
+author:         Ed Brown, Dominic Orchard, Vilem-Benjamin Liepelt, Harley Eades III, Preston Keel
+maintainer:     Ed Brown, Dominic Orchard, Vilem-Benjamin Liepelt, Harley Eades III, Preston Keel
+copyright:      2018-2024 authors
+license:        BSD3
+build-type:     Simple
+
+source-repository head
+  type: git
+  location: https://github.com/granule-project/granule-compiler-llvm
+
+library
+  exposed-modules:
+      Language.Granule.Codegen.NormalisedDef
+      Language.Granule.Codegen.TopsortDefinitions
+      Language.Granule.Codegen.ClosureFreeDef
+      Language.Granule.Codegen.ConvertClosures
+      Language.Granule.Codegen.Emit.EmitLLVM
+      Language.Granule.Codegen.Compile
+      Language.Granule.Codegen.MarkGlobals
+  other-modules:
+      Language.Granule.Codegen.Emit.EmitableDef
+      Language.Granule.Codegen.Emit.EmitterState
+      Language.Granule.Codegen.Emit.LLVMHelpers
+      Language.Granule.Codegen.Emit.LowerClosure
+      Language.Granule.Codegen.Emit.LowerExpression
+      Language.Granule.Codegen.Emit.LowerOperator
+      Language.Granule.Codegen.Emit.LowerPatterns
+      Language.Granule.Codegen.Emit.LowerType
+      Language.Granule.Codegen.Emit.MkId
+      Language.Granule.Codegen.Emit.Names
+      Language.Granule.Codegen.Emit.Primitives
+      Language.Granule.Codegen.Emit.Types
+      Paths_granule_compiler
+  hs-source-dirs:
+      src
+  default-extensions:
+      LambdaCase
+      RecordWildCards
+      ImplicitParams
+      ScopedTypeVariables
+      OverloadedStrings
+  ghc-options: -O0 -Wall -Werror -Wcompat -Wredundant-constraints -Wno-unused-matches -Wno-name-shadowing -Wno-type-defaults -fmax-pmcheck-models=10000000
+  build-depends:
+      base >=4.10 && <5
+    , containers
+    , granule-frontend
+    , llvm-hs >=6.0
+    , llvm-hs-pure >=6.0
+    , mtl
+    , text
+  default-language: Haskell2010
+
+executable grc
+  main-is: Main.hs
+  other-modules:
+      Paths_granule_compiler
+  hs-source-dirs:
+      app
+  default-extensions:
+      LambdaCase
+      RecordWildCards
+      ImplicitParams
+      ScopedTypeVariables
+      OverloadedStrings
+  ghc-options: -O0 -Wall -Werror -Wcompat -Wredundant-constraints -Wno-unused-matches -Wno-name-shadowing -Wno-type-defaults -fmax-pmcheck-models=10000000
+  build-depends:
+      Glob
+    , base >=4.10 && <5
+    , directory
+    , extra
+    , filepath
+    , gitrev
+    , granule-compiler
+    , granule-frontend
+    , llvm-hs >=6.0
+    , llvm-hs-pure >=6.0
+    , optparse-applicative
+    , text
+  default-language: Haskell2010
+
+test-suite compiler-spec
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
+  other-modules:
+      Language.Granule.Codegen.BuildAST
+      Language.Granule.Codegen.ConvertClosuresSpec
+      Language.Granule.Codegen.NormalisedDefSpec
+      Language.Granule.Codegen.TopsortDefinitionsSpec
+      Paths_granule_compiler
+  hs-source-dirs:
+      tests/hspec
+  default-extensions:
+      LambdaCase
+      RecordWildCards
+      ImplicitParams
+      ScopedTypeVariables
+      OverloadedStrings
+  ghc-options: -O0 -Wall -Werror -Wcompat -Wredundant-constraints -Wno-unused-matches -Wno-name-shadowing -Wno-type-defaults -fmax-pmcheck-models=10000000 -fno-warn-partial-type-signatures
+  build-depends:
+      QuickCheck
+    , base >=4.10 && <5
+    , directory
+    , filemanip
+    , granule-compiler
+    , granule-frontend
+    , hspec
+    , mtl
+    , transformers >=0.5
+  default-language: Haskell2010

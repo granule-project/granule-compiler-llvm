@@ -114,7 +114,7 @@ emitFunction :: (MonadState EmitterState m, MonadModuleBuilder m, MonadFix m)
              -> Pattern GrType
              -> GrType
              -> m Operand
-emitFunction ident maybeEnvironmentType body argument (FunTy _ from to) =
+emitFunction ident maybeEnvironmentType body argument (FunTy _ _ from to) =
     do
         let parameterId = head $ boundVars argument
         let parameterName = parameterNameFromId parameterId
