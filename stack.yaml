@@ -1,12 +1,15 @@
-resolver: lts-18.28
+resolver: lts-20.26
 
 packages:
 - '.'
 
 extra-deps:
 - ConfigFile-1.1.4
-- llvm-hs-pure-9.0.0
-- llvm-hs-9.0.1
+- git: https://github.com/jacobpake/llvm-hs-12
+  commit: b684d4a1da9e017c98c6f4e67f08e3bd724473e9
+  subdirs:
+  - llvm-hs-pure
+  - llvm-hs
 - text-replace-0.1.0.3
 - sbv-9.0
 - syz-0.2.0.0@sha256:7307acb8f6ae7720e7e235c974281ecee912703c1394ebcac19caf83d70bb492,2345

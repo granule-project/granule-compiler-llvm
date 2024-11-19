@@ -1,4 +1,5 @@
 {-# LANGUAGE ImplicitParams #-}
+{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 module Language.Granule.Codegen.Compile where
 
 import Language.Granule.Syntax.Def

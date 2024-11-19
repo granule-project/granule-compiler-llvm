@@ -7,10 +7,11 @@ import Language.Granule.Syntax.Expr (Operator(..))
 import LLVM.AST (Operand)
 import LLVM.IRBuilder.Instruction
 import LLVM.IRBuilder.Monad
+import LLVM.IRBuilder.Module (MonadModuleBuilder)
 import qualified LLVM.AST.IntegerPredicate as IP
 import qualified LLVM.AST.FloatingPointPredicate as FPP
 
-llvmOperator :: (MonadIRBuilder m)
+llvmOperator :: (MonadIRBuilder m, MonadModuleBuilder m)
              => GrType
              -> Operator
              -> GrType

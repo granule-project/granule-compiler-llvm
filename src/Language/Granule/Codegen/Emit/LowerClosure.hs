@@ -78,7 +78,7 @@ emitEnvironmentInit variableInitializers env maybeParentEnv =
                   value <- local ident
                   store uninitAddr 4 value
 
-emitClosureConstruction :: (MonadIRBuilder m)
+emitClosureConstruction :: (MonadIRBuilder m, MonadModuleBuilder m)
                         => Id
                         -> GrType
                         -> Operand
@@ -118,6 +118,6 @@ emitTrivialClosure (definitionIdentifier, definitionType) =
           closureType = llvmType definitionType
           initializer = makeTrivialClosure definitionIdentifier definitionType
 
-mallocEnvironment :: (MonadIRBuilder m) => IrType -> m Operand
+mallocEnvironment :: (MonadIRBuilder m, MonadModuleBuilder m) => IrType -> m Operand
 mallocEnvironment ty =
     call (ConstantOperand malloc) [(ConstantOperand $ sizeOf ty, [])]

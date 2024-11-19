@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 module Language.Granule.Codegen.Emit.EmitLLVM where
 
 import qualified LLVM.AST as IR
