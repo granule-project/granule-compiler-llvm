@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 module Language.Granule.Codegen.BuildAST where
 import Language.Granule.Codegen.NormalisedDef
 import Language.Granule.Codegen.MarkGlobals
