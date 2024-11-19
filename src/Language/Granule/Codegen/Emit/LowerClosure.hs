@@ -1,8 +1,11 @@
+{-# LANGUAGE FlexibleContexts #-}
 module Language.Granule.Codegen.Emit.LowerClosure where
 
-import Control.Monad (zipWithM_)
+import Control.Monad.State.Strict
+
 import Data.Maybe (fromJust)
 
+import Language.Granule.Codegen.Emit.EmitterState
 import Language.Granule.Codegen.Emit.Types (IrType, GrType)
 import Language.Granule.Codegen.Emit.LowerType (llvmTypeForEnvironment, llvmTopLevelType, llvmType)
 import Language.Granule.Codegen.Emit.Names
@@ -33,7 +36,7 @@ maybeEmitEnvironmentType =
                   llvmType = llvmTypeForEnvironment environmentType
               in typedef llvmName (Just llvmType)
 
-emitClosureMarker :: (MonadIRBuilder m, MonadModuleBuilder m)
+emitClosureMarker :: (MonadIRBuilder m, MonadModuleBuilder m, MonadState EmitterState m)
                   => GrType
                   -> Maybe Operand
                   -> ClosureMarker
@@ -55,7 +58,7 @@ emitClosureMarker ty maybeParentEnv (MakeClosure ident initializer) =
 emitClosureMarker ty _ (MakeTrivialClosure identifier) =
     return $ ConstantOperand $ makeTrivialClosure identifier ty
 
-emitEnvironmentInit :: (MonadModuleBuilder m, MonadIRBuilder m)
+emitEnvironmentInit :: (MonadModuleBuilder m, MonadIRBuilder m, MonadState EmitterState m)
                     => [ClosureVariableInit]
                     -> Operand
                     -> Maybe Operand
@@ -72,7 +75,7 @@ emitEnvironmentInit variableInitializers env maybeParentEnv =
           emitEnvironmentVariableInit n (FromLocalScope ident ty) =
               do
                   uninitAddr <- gep env $ (ConstantOperand . intConstant) <$> [0, n]
-                  let value = LocalReference (llvmType ty) (localNameFromId ident)
+                  value <- local ident
                   store uninitAddr 4 value
 
 emitClosureConstruction :: (MonadIRBuilder m)
