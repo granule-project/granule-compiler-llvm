@@ -48,7 +48,6 @@ mkdir build && cd build
 # setup
 cmake -Wno-dev -G "Ninja" .. \
 -DCMAKE_BUILD_TYPE=Release \
--DCMAKE_CXX_FLAGS_RELEASE=-O0 \
 -DCMAKE_INSTALL_PREFIX=/usr/local/llvm-12 \
 -DLLVM_TARGETS_TO_BUILD="AArch64" \
 -DLLVM_INCLUDE_TOOLS=ON \
