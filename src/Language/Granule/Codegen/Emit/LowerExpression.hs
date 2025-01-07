@@ -44,7 +44,7 @@ emitExpression :: (MonadState EmitterState m, MonadModuleBuilder m, MonadIRBuild
 emitExpression env =
     bipara (emitExpr env) (emitValue env)
 
-emitExpr :: (MonadState EmitterState m, MonadIRBuilder m, MonadFix m)
+emitExpr :: (MonadState EmitterState m, MonadModuleBuilder m, MonadIRBuilder m, MonadFix m)
          => Maybe Operand
          -> ExprF (Either GlobalMarker ClosureMarker) Type (EmitableExpr, m Operand) (EmitableValue, m Operand)
          -> m Operand
