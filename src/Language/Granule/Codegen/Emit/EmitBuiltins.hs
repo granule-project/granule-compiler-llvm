@@ -19,6 +19,7 @@ import Language.Granule.Codegen.Emit.LowerType (llvmType, llvmTypeForClosure, ll
 import Language.Granule.Codegen.Emit.Names (functionNameFromId)
 import Language.Granule.Syntax.Identifiers
 
+-- TODO: only emit builtins as required
 emitBuiltins :: MonadModuleBuilder m => m [Operand]
 emitBuiltins = mapM emitBuiltin builtins
 
