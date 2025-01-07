@@ -5,13 +5,16 @@ import Language.Granule.Syntax.Type
 import Language.Granule.Syntax.Identifiers
 import Language.Granule.Syntax.Pretty
 import Data.Bifunctor.Foldable
+import Language.Granule.Codegen.Builtins (builtinIds)
 
 data GlobalMarker =
     GlobalVar Type Id
+    | BuiltinVar Type Id
     deriving (Show, Eq)
 
 instance Pretty GlobalMarker where
     pretty (GlobalVar _ x) = pretty x
+    pretty (BuiltinVar _ x) = pretty x
 
 markGlobals :: NormalisedAST () Type -> NormalisedAST GlobalMarker Type
 markGlobals (NormalisedAST dataDecls functionDefs valueDefs) =
@@ -32,6 +35,7 @@ markGlobalsInExpr :: [Id] -> Expr () Type -> Expr GlobalMarker Type
 markGlobalsInExpr globals =
     bicata fixMapExtExpr markInValue
     where markInValue (VarF ty ident)
+              | ident `elem` builtinIds = Ext ty (BuiltinVar ty ident)
               | ident `elem` globals = Ext ty (GlobalVar ty ident)
               | otherwise = Var ty ident
           markInValue other =

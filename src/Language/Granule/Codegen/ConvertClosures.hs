@@ -167,5 +167,8 @@ convertClosuresFromValue (_, maybeCurrentEnv, locals) (VarF ty ident)
                                               ++ sourceName ident ++ " in environment."
         in return $ Ext ty (Right (CapturedVar ty ident indexInEnv))
 
+convertClosuresFromValue (_, maybeCurrentEnv, _)  (ExtF ty (BuiltinVar _ ident)) =
+    return $ Ext ty $ Right $ MakeBuiltinClosure ident
+
 convertClosuresFromValue _ other =
     return $ fixMapExtValue (\ty gv -> Ext ty $ Left gv) other

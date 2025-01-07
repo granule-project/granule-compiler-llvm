@@ -129,6 +129,8 @@ emitValue _ (StringLiteralF str) =
 emitValue _ (ExtF a (Left (GlobalVar ty ident))) = do
     let ref = IR.ConstantOperand $ C.GlobalReference (ptr (llvmType ty)) (definitionNameFromId ident)
     load ref 4
+emitValue _ (ExtF a (Left (BuiltinVar ty ident))) = do
+    error "TODO?"
 emitValue environment (ExtF ty (Right cm)) =
     emitClosureMarker ty environment cm
 {- TODO: Support tagged unions, also affects Case.
