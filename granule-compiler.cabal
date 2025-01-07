@@ -39,6 +39,7 @@ library
       Language.Granule.Codegen.Emit.LowerOperator
       Language.Granule.Codegen.Emit.LowerPatterns
       Language.Granule.Codegen.Emit.LowerType
+      Language.Granule.Codegen.Emit.MainOut
       Language.Granule.Codegen.Emit.MkId
       Language.Granule.Codegen.Emit.Names
       Language.Granule.Codegen.Emit.Primitives

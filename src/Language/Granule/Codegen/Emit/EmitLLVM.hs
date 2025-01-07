@@ -7,7 +7,6 @@ import qualified LLVM.AST as IR
 
 import LLVM.AST (Operand, mkName)
 import LLVM.AST.Constant (Constant(..))
-import qualified LLVM.AST.Constant as C
 import LLVM.AST.Type hiding (Type)
 import LLVM.IRBuilder.Module
 import LLVM.IRBuilder.Monad
@@ -22,7 +21,7 @@ import Language.Granule.Codegen.Emit.Names
 import Language.Granule.Codegen.Emit.LowerClosure (emitEnvironmentType, emitTrivialClosure)
 import Language.Granule.Codegen.Emit.LowerType (llvmTopLevelType, llvmType)
 import Language.Granule.Codegen.Emit.LowerExpression (emitExpression)
-import Language.Granule.Codegen.Emit.Primitives (writeInt)
+import Language.Granule.Codegen.Emit.MainOut (findMainReturnType, externWrite, loadMainValue, write)
 
 import Language.Granule.Codegen.ClosureFreeDef
 import Language.Granule.Codegen.NormalisedDef
@@ -37,18 +36,7 @@ import qualified Data.Map.Strict as Map
 
 import Control.Monad.Fix
 import Control.Monad.State.Strict hiding (void)
-
-
-externWriteInt :: (MonadModuleBuilder m) => m Operand
-externWriteInt = do
-  printf <- externVarArgs (mkName "printf") [ptr i8] i32
-  function "writeInt" [(i32, mkPName "n")] void $ \[n] -> do
-    _ <- globalStringPtr "%d\n" (mkName ".formatInt")
-    let addr = IR.ConstantOperand $ C.GetElementPtr True formatStr [intConstant 0, intConstant 0]
-               where formatStr = C.GlobalReference ty ".formatInt"
-                     ty = ptr (ArrayType 4 i8)
-    _ <- call printf [(addr, []), (n, [])]
-    retVoid
+import LLVM.IRBuilder (int32)
 
 emitLLVM :: String -> ClosureFreeAST -> Either String IR.Module
 emitLLVM moduleName (ClosureFreeAST dataDecls functionDefs valueDefs) =
@@ -56,24 +44,24 @@ emitLLVM moduleName (ClosureFreeAST dataDecls functionDefs valueDefs) =
     in Right $ buildModule (fromString moduleName) $ do
         _ <- extern (mkName "malloc") [i64] (ptr i8)
         _ <- extern (mkName "abort") [] void
-        _ <- externWriteInt
         _ <- emitBuiltins
-
+        let mainTy = findMainReturnType valueDefs
+        _ <- externWrite mainTy
         mapM_ emitDataDecl dataDecls
         mapM_ emitEnvironmentType functionDefs
         mapM_ emitFunctionDef functionDefs
         valueInitPairs <- mapM emitValueDef valueDefs
-        emitGlobalInitializer valueInitPairs
+        emitGlobalInitializer valueInitPairs mainTy
 
-emitGlobalInitializer :: (MonadModuleBuilder m) => [(Operand, Operand)] -> m Operand
-emitGlobalInitializer valueInitPairs =
+emitGlobalInitializer :: (MonadModuleBuilder m) => [(Operand, Operand)] -> GrType -> m Operand
+emitGlobalInitializer valueInitPairs mainTy =
     function (mkName "main") [] i32 $ \[] -> do
         mapM_ (\(global, initializer) -> do
             value <- call initializer []
             store global 4 value) valueInitPairs
-        exitCode <- load (IR.ConstantOperand $ GlobalReference (ptr i32) (mkName "def.main")) 4
-        _ <- call (IR.ConstantOperand writeInt) [(exitCode, [])]
-        ret exitCode
+        mainValue <- loadMainValue mainTy
+        _ <- call (IR.ConstantOperand $ write mainTy) [(mainValue, [])]
+        ret (int32 0)
 
 emitValueDef :: MonadState EmitterState m
              => MonadModuleBuilder m
