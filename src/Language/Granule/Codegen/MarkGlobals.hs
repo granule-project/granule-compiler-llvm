@@ -64,3 +64,4 @@ fixMapExtValue f (ExtF ty ev) = f ty ev
 fixMapExtValue f (NecF ty ex) = Nec ty ex
 fixMapExtValue f (PackF sp ty t1 ex ident k t2) = Pack sp ty t1 ex ident k t2
 fixMapExtValue f (TyAbsF ty idents e) = TyAbs ty idents e
+fixMapExtValue f (RefF ty ex) = Ref ty ex

@@ -14,7 +14,7 @@ extra-deps:
 - sbv-9.0
 - syz-0.2.0.0@sha256:7307acb8f6ae7720e7e235c974281ecee912703c1394ebcac19caf83d70bb492,2345
 - git: https://github.com/granule-project/granule
-  commit: 83bdac01ffe56c756fe7bfd6fd88a55577e37aa6 # 0.9.5.0
+  commit: bcf2365a1358028d8e723c8444800168a67953ce # 0.9.6.0
   subdirs:
   - frontend
 - git: https://github.com/jackohughes/haskell-src-exts
