@@ -168,3 +168,6 @@ emitValue _ (PackF {}) =
 
 emitValue _ (TyAbsF {}) =
     error "TyAbsF not supported"
+
+emitValue _ (RefF {}) =
+    error "RefF not supported"
