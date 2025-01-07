@@ -17,6 +17,7 @@ import Language.Granule.Codegen.Emit.Types (GrType, IrType)
 import Language.Granule.Codegen.Emit.LLVMHelpers
 import Language.Granule.Codegen.Emit.EmitableDef
 import Language.Granule.Codegen.Emit.EmitterState
+import Language.Granule.Codegen.Emit.EmitBuiltins (emitBuiltins)
 import Language.Granule.Codegen.Emit.Names
 import Language.Granule.Codegen.Emit.LowerClosure (emitEnvironmentType, emitTrivialClosure)
 import Language.Granule.Codegen.Emit.LowerType (llvmTopLevelType, llvmType)
@@ -56,6 +57,7 @@ emitLLVM moduleName (ClosureFreeAST dataDecls functionDefs valueDefs) =
         _ <- extern (mkName "malloc") [i64] (ptr i8)
         _ <- extern (mkName "abort") [] void
         _ <- externWriteInt
+        _ <- emitBuiltins
 
         mapM_ emitDataDecl dataDecls
         mapM_ emitEnvironmentType functionDefs

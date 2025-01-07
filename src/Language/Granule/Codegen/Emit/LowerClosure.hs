@@ -58,6 +58,11 @@ emitClosureMarker ty maybeParentEnv (MakeClosure ident initializer) =
 emitClosureMarker ty _ (MakeTrivialClosure identifier) =
     return $ ConstantOperand $ makeTrivialClosure identifier ty
 
+emitClosureMarker ty _ (MakeBuiltinClosure ident) = do
+    let functionPtr = ConstantOperand $ C.GlobalReference (ptr $ llvmTopLevelType ty) (functionNameFromId ident)
+    closure <- insertValue (ConstantOperand $ C.Undef (llvmType ty)) functionPtr [0]
+    insertValue closure (ConstantOperand $ C.Null (ptr i8)) [1]
+
 emitEnvironmentInit :: (MonadModuleBuilder m, MonadIRBuilder m, MonadState EmitterState m)
                     => [ClosureVariableInit]
                     -> Operand
