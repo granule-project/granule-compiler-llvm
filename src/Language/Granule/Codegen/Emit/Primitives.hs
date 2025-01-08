@@ -4,7 +4,7 @@ import LLVM.IRBuilder.Instruction
 
 import LLVM.AST (mkName, Operand(..))
 import LLVM.AST.Constant (Constant, Constant(..))
-import LLVM.AST.Type (i8, i64, ptr, void, Type(..))
+import LLVM.AST.Type (i8, i32, i64, ptr, void, Type(..))
 import LLVM.IRBuilder (MonadModuleBuilder)
 
 malloc :: Constant
@@ -20,3 +20,8 @@ abort = GlobalReference functionType name
 
 trap :: (MonadIRBuilder m, MonadModuleBuilder m) => m ()
 trap = (call (ConstantOperand abort) []) >> unreachable >> return ()
+
+printf :: Constant
+printf = GlobalReference functionType name
+        where name = mkName "printf"
+              functionType = ptr (FunctionType i32 [ptr i8] True)

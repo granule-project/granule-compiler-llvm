@@ -21,7 +21,7 @@ import Language.Granule.Codegen.Emit.Names
 import Language.Granule.Codegen.Emit.LowerClosure (emitEnvironmentType, emitTrivialClosure)
 import Language.Granule.Codegen.Emit.LowerType (llvmTopLevelType, llvmType)
 import Language.Granule.Codegen.Emit.LowerExpression (emitExpression)
-import Language.Granule.Codegen.Emit.MainOut (findMainReturnType, externWrite, loadMainValue, write)
+import Language.Granule.Codegen.Emit.MainOut (emitMainOut, findMainReturnType, loadMainValue, mainOut)
 
 import Language.Granule.Codegen.ClosureFreeDef
 import Language.Granule.Codegen.NormalisedDef
@@ -44,9 +44,10 @@ emitLLVM moduleName (ClosureFreeAST dataDecls functionDefs valueDefs) =
     in Right $ buildModule (fromString moduleName) $ do
         _ <- extern (mkName "malloc") [i64] (ptr i8)
         _ <- extern (mkName "abort") [] void
+        _ <- externVarArgs (mkName "printf") [ptr i8] i32
         _ <- emitBuiltins
         let mainTy = findMainReturnType valueDefs
-        _ <- externWrite mainTy
+        _ <- emitMainOut mainTy
         mapM_ emitDataDecl dataDecls
         mapM_ emitEnvironmentType functionDefs
         mapM_ emitFunctionDef functionDefs
@@ -60,7 +61,7 @@ emitGlobalInitializer valueInitPairs mainTy =
             value <- call initializer []
             store global 4 value) valueInitPairs
         mainValue <- loadMainValue mainTy
-        _ <- call (IR.ConstantOperand $ write mainTy) [(mainValue, [])]
+        _ <- call (IR.ConstantOperand $ mainOut mainTy) [(mainValue, [])]
         ret (int32 0)
 
 emitValueDef :: MonadState EmitterState m
