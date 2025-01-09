@@ -42,7 +42,7 @@ For the former use `llvmSubType`, for the latter use `llvmTopLevelType`
 llvmType :: GrType -> IrType
 llvmType (FunTy _ _ from to) =
     llvmTypeForClosure $ llvmTypeForFunction (llvmType from) (llvmType to)
-llvmType (TyApp (TyApp (TyCon (MkId "(,)")) left) right) =
+llvmType (TyApp (TyApp (TyCon (MkId ",")) left) right) =
     StructureType False [llvmType left, llvmType right]
 llvmType (TyCon (MkId "Int")) = i32
 llvmType (TyCon (MkId "Float")) = double

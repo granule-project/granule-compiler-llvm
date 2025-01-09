@@ -15,6 +15,7 @@ import Language.Granule.Codegen.Emit.Primitives (trap)
 import Language.Granule.Codegen.Emit.LLVMHelpers (stringConstant, charConstant)
 
 import Language.Granule.Syntax.Expr
+import Language.Granule.Syntax.Identifiers
 import Language.Granule.Syntax.Annotated (annotation)
 import Language.Granule.Syntax.Type as GRType
 
@@ -48,6 +49,16 @@ emitExpr :: (MonadState EmitterState m, MonadModuleBuilder m, MonadIRBuilder m, 
          => Maybe Operand
          -> ExprF (Either GlobalMarker ClosureMarker) Type (EmitableExpr, m Operand) (EmitableValue, m Operand)
          -> m Operand
+emitExpr environment (AppF _ (FunTy _ _ _ (TyApp (TyApp (TyCon (Id "," _)) _) _)) _ _ (_, emitArg)) = emitArg
+
+emitExpr environment (AppF _ (TyApp (TyApp (TyCon (Id "," _)) t1) t2) _ (ExprFix2 (AppF {}), emitFunction) (_, emitArg)) =
+    do
+        left <- emitFunction
+        right <- emitArg
+        let pairTy = IRType.StructureType False [llvmType t1, llvmType t2]
+        undef <- insertValue (IR.ConstantOperand $ C.Undef pairTy) left [0]
+        insertValue undef right [1]
+
 emitExpr environment (AppF _ ty _ (_, emitFunction) (_, emitArg)) =
     do
         closure <- emitFunction
@@ -158,6 +169,10 @@ emitValue _ (ConstrF ty (MkId "(,)") []) =
     environmentTypedPtr <- bitcast environmentVoidPtr (ptr environmentType)
     emitEnvironmentInit variableInitializers environmentTypedPtr maybeParentEnv
     emitClosureConstruction ident ty environmentVoidPtr -}
+
+emitValue _ (ConstrF (FunTy _ _ leftTy (FunTy _ _ rightTy _)) (Id "," _) []) = do
+    let pairTy = IRType.StructureType False [llvmType leftTy, llvmType rightTy]
+    return $ IR.ConstantOperand $ C.Undef pairTy
 
 emitValue _ (ConstrF {}) =
     error "Encountered Constr. It should have been removed by constructor conversion."

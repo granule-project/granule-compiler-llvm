@@ -32,7 +32,8 @@ loadMainValue mainTy = load mainRef 4
         mainRef = IR.ConstantOperand $ GlobalReference (ptr $ llvmType mainTy) (mkName "def.main")
 
 emitMainOut :: (MonadModuleBuilder m) => GrType -> m Operand
-emitMainOut ty = function "internal_mainOut" [(llvmType ty, mkPName "x")] void $ \[x] -> do
+emitMainOut ty =
+    function "internal_mainOut" [(llvmType ty, mkPName "x")] void $ \[x] -> do
         _ <- emitPrint ty [x]
         retVoid
 
@@ -59,4 +60,6 @@ fmtStrForTy x =
     case x of
         (TyCon (Id "Int" _)) -> "%d"
         (TyCon (Id "Float" _)) -> "%.6f"
+        (TyApp (TyApp (TyCon (Id "," _)) leftTy) rightTy) ->
+            "(" ++ fmtStrForTy leftTy ++ ", " ++ fmtStrForTy rightTy ++ ")"
         _ -> error "Unsupported"
