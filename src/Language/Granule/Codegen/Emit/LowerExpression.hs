@@ -51,13 +51,14 @@ emitExpr :: (MonadState EmitterState m, MonadModuleBuilder m, MonadIRBuilder m, 
          -> m Operand
 emitExpr environment (AppF _ (FunTy _ _ _ (TyApp (TyApp (TyCon (Id "," _)) _) _)) _ _ (_, emitArg)) = emitArg
 
-emitExpr environment (AppF _ (TyApp (TyApp (TyCon (Id "," _)) t1) t2) _ (ExprFix2 (AppF {}), emitFunction) (_, emitArg)) =
+emitExpr environment (AppF _ (TyApp (TyApp (TyCon (Id "," _)) leftTy) rightTy) _ (ExprFix2 (AppF {}), emitFunction) (_, emitArg)) =
     do
-        left <- emitFunction
-        right <- emitArg
-        let pairTy = IRType.StructureType False [llvmType t1, llvmType t2]
-        undef <- insertValue (IR.ConstantOperand $ C.Undef pairTy) left [0]
-        insertValue undef right [1]
+        leftVal <- emitFunction
+        rightVal <- emitArg
+        let pairTy = IRType.StructureType False [llvmType leftTy, llvmType rightTy]
+        let pair = IR.ConstantOperand $ C.Undef pairTy
+        pair' <- insertValue pair leftVal [0]
+        insertValue pair' rightVal [1]
 
 emitExpr environment (AppF _ ty _ (_, emitFunction) (_, emitArg)) =
     do
