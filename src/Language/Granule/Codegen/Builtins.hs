@@ -12,7 +12,7 @@ import Language.Granule.Syntax.Identifiers
 import Language.Granule.Syntax.Type
 
 data Builtin = Builtin {
-    builtinId :: Id,
+    builtinId :: String,
     builtinArgTys :: [Type],
     builtinRetTy :: Type,
     builtinImpl :: forall m. (MonadModuleBuilder m, MonadIRBuilder m) => [Operand] -> m Operand}
@@ -24,12 +24,12 @@ builtins :: [Builtin]
 builtins = [charToIntDef, divDef]
 
 builtinIds :: [Id]
-builtinIds = map builtinId builtins
+builtinIds = map (mkId . builtinId) builtins
 
 -- charToInt :: Char -> Int
 charToIntDef :: Builtin
 charToIntDef =
-    Builtin (mkId "charToInt") args ret impl
+    Builtin "charToInt" args ret impl
     where
         args = [TyCon (Id "Char" "Char")]
         ret = TyCon (Id "Int" "Int")
@@ -38,7 +38,7 @@ charToIntDef =
 -- div :: Int -> Int -> Int
 divDef :: Builtin
 divDef =
-    Builtin (mkId "div") args ret impl
+    Builtin "div" args ret impl
     where
         args = [TyCon (Id "Int" "Int"), TyCon (Id "Int" "Int")]
         ret = TyCon (Id "Int" "Int")

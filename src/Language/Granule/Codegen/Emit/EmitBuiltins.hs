@@ -15,7 +15,6 @@ import Language.Granule.Codegen.Builtins
 import Language.Granule.Codegen.Emit.LLVMHelpers
 import Language.Granule.Codegen.Emit.LowerClosure (mallocEnvironment)
 import Language.Granule.Codegen.Emit.LowerType (llvmType, llvmTypeForClosure, llvmTypeForFunction)
-import Language.Granule.Syntax.Identifiers
 
 -- TODO: only emit builtins as required
 emitBuiltins :: (MonadModuleBuilder m) => m [Operand]
@@ -31,7 +30,7 @@ emitBuiltin builtin =
 
 emitClosureChain ::
     MonadModuleBuilder m =>
-    Id ->
+    String ->
     [IR.Type] ->
     IR.Type ->
     ([Operand] -> IRBuilderT m Operand) ->
@@ -67,6 +66,6 @@ emitClosureChain id argTys retTy impl envTy pos =
                 closure' <- insertValue closure envPtr [1]
                 ret closure'
 
-funcName :: Id -> Int -> IR.Name
-funcName id 0 = IR.mkName $ "fn." ++ internalName id
-funcName id x = IR.mkName $ "internal.fn." ++ internalName id ++ show x
+funcName :: String -> Int -> IR.Name
+funcName id 0 = IR.mkName $ "fn." ++ id
+funcName id x = IR.mkName $ "internal.fn." ++ id ++ show x
