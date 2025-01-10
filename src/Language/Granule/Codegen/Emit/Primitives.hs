@@ -4,7 +4,7 @@ import LLVM.IRBuilder.Instruction
 
 import LLVM.AST (mkName, Operand(..))
 import LLVM.AST.Constant (Constant, Constant(..))
-import LLVM.AST.Type (i8, i32, i64, ptr, void, Type(..))
+import LLVM.AST.Type (i1, i8, i32, i64, ptr, void, Type(..))
 import LLVM.IRBuilder (MonadModuleBuilder)
 
 malloc :: Constant
@@ -25,3 +25,8 @@ printf :: Constant
 printf = GlobalReference functionType name
         where name = mkName "printf"
               functionType = ptr (FunctionType i32 [ptr i8] True)
+
+memcpy :: Constant
+memcpy = GlobalReference functionType name
+        where name = mkName "llvm.memcpy.p0.p0.i32"
+              functionType = ptr (FunctionType void [ptr i8, ptr i8, i32, i1] False)
