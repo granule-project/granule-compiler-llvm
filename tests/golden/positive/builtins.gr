@@ -1,0 +1,2 @@
+main : Int
+main = div (charToInt 'T') 2

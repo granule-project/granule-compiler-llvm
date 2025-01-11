@@ -1,0 +1,11 @@
+fst : (Int, Int [0]) -> Int
+fst (x, [_]) = x
+
+snd : (Int [0], Int) -> Int
+snd ([_], y) = y
+
+trip : Int [3] → (Int, (Int, Int))
+trip [x] = (x, (x, x))
+
+main : ((Int, Int),(Int, (Int, Int)))
+main = ((fst (1, [2]), snd ([1], 2)), trip [3])
