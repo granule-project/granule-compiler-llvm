@@ -75,3 +75,18 @@ tests:
     - QuickCheck
     - mtl
     - transformers >=0.5
+  golden:
+    main: Golden.hs
+    source-dirs: tests/golden
+    dependencies:
+    - granule-frontend
+    - granule-compiler
+    - llvm-hs-pure >= 6.0
+    - llvm-hs >= 6.0
+    - filepath
+    - process
+    - directory
+    - tasty
+    - tasty-golden
+    - string-conversions
+    - text
