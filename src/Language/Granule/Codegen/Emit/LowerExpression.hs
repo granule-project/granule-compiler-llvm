@@ -15,7 +15,6 @@ import Language.Granule.Codegen.Emit.Primitives (trap)
 import Language.Granule.Codegen.Emit.LLVMHelpers (stringConstant, charConstant)
 
 import Language.Granule.Syntax.Expr
-import Language.Granule.Syntax.Identifiers
 import Language.Granule.Syntax.Annotated (annotation)
 import Language.Granule.Syntax.Type as GRType
 
@@ -49,19 +48,19 @@ emitExpr :: (MonadState EmitterState m, MonadModuleBuilder m, MonadIRBuilder m, 
          => Maybe Operand
          -> ExprF (Either GlobalMarker ClosureMarker) Type (EmitableExpr, m Operand) (EmitableValue, m Operand)
          -> m Operand
--- TODO - maybe this should be handled elsewhere? doesn't play nice with our builtins
--- emitExpr environment (AppF _ (FunTy _ _ _ (TyApp (TyApp (TyCon (Id "," _)) _) _)) _ _ (_, emitArg)) = emitArg
+emitExpr environment (AppF _ _ _ (ExprFix2 (ValF _ _ _ (ExprFix2 (ExtF _ (Left (PairConstr _ _))))), emitFunction) (_, emitArg)) =
+    do
+        pair <- emitFunction
+        leftVal <- emitArg
+        insertValue pair leftVal [0]
 
--- emitExpr environment (AppF _ (TyApp (TyApp (TyCon (Id "," _)) leftTy) rightTy) _ (ExprFix2 (AppF {}), emitFunction) (_, emitArg)) =
---     do
---         leftVal <- emitFunction
---         rightVal <- emitArg
---         let pairTy = IRType.StructureType False [llvmType leftTy, llvmType rightTy]
---         let pair = IR.ConstantOperand $ C.Undef pairTy
---         pair' <- insertValue pair leftVal [0]
---         insertValue pair' rightVal [1]
+emitExpr environment (AppF _ _ _ (ExprFix2 ((AppF _ _ _ (ExprFix2 (ValF _ _ _ (ExprFix2 (ExtF _ (Left (PairConstr _ _)))))) _)), emitFunction) (_, emitArg)) =
+    do
+        pair <- emitFunction
+        rightVal <- emitArg
+        insertValue pair rightVal [1]
 
-emitExpr environment (AppF _ ty _ (_, emitFunction) (_, emitArg)) =
+emitExpr environment (AppF _ _ _ (_, emitFunction) (_, emitArg)) =
     do
         closure <- emitFunction
         argument <- emitArg
@@ -172,7 +171,7 @@ emitValue _ (ConstrF ty (MkId "(,)") []) =
     emitEnvironmentInit variableInitializers environmentTypedPtr maybeParentEnv
     emitClosureConstruction ident ty environmentVoidPtr -}
 
-emitValue _ (ConstrF (FunTy _ _ leftTy (FunTy _ _ rightTy _)) (Id "," _) []) = do
+emitValue _ (ExtF a (Left (PairConstr leftTy rightTy))) = do
     let pairTy = IRType.StructureType False [llvmType leftTy, llvmType rightTy]
     return $ IR.ConstantOperand $ C.Undef pairTy
 
