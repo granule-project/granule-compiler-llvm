@@ -57,11 +57,9 @@ newFloatArrayIDef =
         args = [tyInt]
         ret = tyFloatArray
         impl [len] = do
-            -- arrays are a struct {int32 len, double* data} - on heap - use stack?
             arrPtr <- call (ConstantOperand malloc) [(ConstantOperand $ sizeOf structTy, [])]
             arrPtr' <- bitcast arrPtr (ptr structTy)
-
-            -- not 100% on the size and if we need to do anything for alignment, but it works
+            -- length * double precision 8 bytes
             dataSize <- mul len (int32 8)
             dataPtr <- call (ConstantOperand malloc) [(dataSize, [])]
 
