@@ -34,6 +34,9 @@ tyFloat = TyCon (Id "Float" "Float")
 tyChar :: Gr.Type
 tyChar = TyCon (Id "Char" "Char")
 
+tyUnit :: Gr.Type
+tyUnit = TyCon (Id "()" "()")
+
 tyPair :: (Gr.Type, Gr.Type) -> Gr.Type
 tyPair (l, r) = TyApp (TyApp (TyCon (Id "," ",")) l) r
 

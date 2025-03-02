@@ -30,3 +30,8 @@ memcpy :: Constant
 memcpy = GlobalReference functionType name
         where name = mkName "llvm.memcpy.p0.p0.i32"
               functionType = ptr (FunctionType void [ptr i8, ptr i8, i32, i1] False)
+
+free :: Constant
+free = GlobalReference functionType name
+        where name = mkName "free"
+              functionType = ptr (FunctionType void [ptr i8] False)
