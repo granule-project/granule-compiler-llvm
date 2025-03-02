@@ -1,53 +1,15 @@
-{-# LANGUAGE RankNTypes #-}
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 
-module Language.Granule.Codegen.Builtins where
+module Language.Granule.Codegen.Builtins.ImmutableArray where
 
 import LLVM.AST
-import qualified LLVM.AST.Constant as C
 import LLVM.AST.Type as IR
+import qualified LLVM.AST.Constant as C
 import LLVM.IRBuilder.Constant as C
 import LLVM.IRBuilder.Instruction
-import LLVM.IRBuilder.Module
-import LLVM.IRBuilder.Monad
+import Language.Granule.Codegen.Builtins.Shared
 import Language.Granule.Codegen.Emit.LLVMHelpers (sizeOf)
 import Language.Granule.Codegen.Emit.Primitives (malloc, memcpy)
-import Language.Granule.Syntax.Identifiers
-import Language.Granule.Syntax.Type as Gr
-
-data Builtin = Builtin {
-    builtinId :: String,
-    builtinArgTys :: [Gr.Type],
-    builtinRetTy :: Gr.Type,
-    builtinImpl :: forall m. (MonadModuleBuilder m, MonadIRBuilder m) => [Operand] -> m Operand}
-
-mkFunType :: [Gr.Type] -> Gr.Type -> Gr.Type
-mkFunType args ret = foldr (FunTy Nothing Nothing) ret args
-
-builtins :: [Builtin]
-builtins =  [charToIntDef, divDef, newFloatArrayIDef, readFloatArrayIDef, writeFloatArrayIDef, lengthFloatArrayIDef ]
-
-
-builtinIds :: [Id]
-builtinIds = map (mkId . builtinId) builtins
-
--- charToInt :: Char -> Int
-charToIntDef :: Builtin
-charToIntDef =
-    Builtin "charToInt" args ret impl
-    where
-        args = [TyCon (Id "Char" "Char")]
-        ret = TyCon (Id "Int" "Int")
-        impl [x] = zext x i32
-
--- div :: Int -> Int -> Int
-divDef :: Builtin
-divDef =
-    Builtin "div" args ret impl
-    where
-        args = [TyCon (Id "Int" "Int"), TyCon (Id "Int" "Int")]
-        ret = TyCon (Id "Int" "Int")
-        impl [x, y] = sdiv x y
 
 -- newFloatArrayI :: Int -> FloatArray id
 newFloatArrayIDef :: Builtin
@@ -89,7 +51,6 @@ readFloatArrayIDef =
             valuePtr <- gep dataPtr [idx]
             value <- load valuePtr 0
 
-            -- pair return (float, floatArray) on stack
             let pairTy = StructureType False [IR.double, ptr structTy]
             let pair = ConstantOperand $ C.Undef pairTy
             pair' <- insertValue pair value [0]
@@ -154,26 +115,7 @@ lengthFloatArrayIDef =
             lenField <- gep arrPtr' [int32 0, int32 0]
             len <- load lenField 0
 
-            -- pair return (int, floatArray) on stack
             let pairTy = StructureType False [i32, ptr structTy]
             let pair = ConstantOperand $ C.Undef pairTy
             pair' <- insertValue pair len [0]
             insertValue pair' arrPtr [1]
-
-structTy :: IR.Type
-structTy =  StructureType False [i32, ptr IR.double]
-
-tyInt :: Gr.Type
-tyInt = TyCon (Id "Int" "Int")
-
-tyFloat :: Gr.Type
-tyFloat = TyCon (Id "Float" "Float")
-
-tyChar :: Gr.Type
-tyChar = TyCon (Id "Char" "Char")
-
-tyPair :: (Gr.Type, Gr.Type) -> Gr.Type
-tyPair (l, r) = TyApp (TyApp (TyCon (Id "," ",")) l) r
-
-tyFloatArray :: Gr.Type
-tyFloatArray = TyApp (TyCon (Id "FloatArray" "FloatArray")) (TyVar (Id "id" "id"))

@@ -29,7 +29,10 @@ library
       Language.Granule.Codegen.Compile
       Language.Granule.Codegen.MarkGlobals
   other-modules:
-      Language.Granule.Codegen.Builtins
+      Language.Granule.Codegen.Builtins.Builtins
+      Language.Granule.Codegen.Builtins.Extras
+      Language.Granule.Codegen.Builtins.ImmutableArray
+      Language.Granule.Codegen.Builtins.Shared
       Language.Granule.Codegen.Emit.EmitableDef
       Language.Granule.Codegen.Emit.EmitBuiltins
       Language.Granule.Codegen.Emit.EmitterState
