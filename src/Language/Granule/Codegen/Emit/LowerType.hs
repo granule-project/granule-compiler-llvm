@@ -46,6 +46,8 @@ llvmType (TyApp (TyApp (TyCon (MkId ",")) left) right) =
     StructureType False [llvmType left, llvmType right]
 llvmType (TyApp (TyCon (MkId "FloatArray")) _) =
     ptr $ StructureType False [i32, ptr double]
+llvmType (TyCon (MkId "()")) =
+    StructureType False []
 llvmType (TyCon (MkId "Int")) = i32
 llvmType (TyCon (MkId "Float")) = double
 llvmType (TyCon (MkId "Char")) = i8

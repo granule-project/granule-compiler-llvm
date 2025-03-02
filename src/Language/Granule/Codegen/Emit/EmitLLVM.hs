@@ -151,6 +151,18 @@ emitFunction ident maybeEnvironmentType body argument@(PConstr _ _ _ _ _ ps) (Fu
                 typedEnvrionmentPointer <- maybeBitcastEnvironment env maybeEnvironmentType
                 returnValue <- emitExpression typedEnvrionmentPointer body
                 ret returnValue
+emitFunction ident maybeEnvironmentType body argument@(PConstr  {}) (FunTy _ _ from@(TyCon (Id "()" "()")) to) =
+    do
+        let parameterName = parameterNameFromId (MkId "__unit")
+        let (parameterType, returnType) = (llvmType from, llvmType to)
+        let parameter = (parameterType, parameterName)
+        let environmentParameter = (ptr i8, mkPName "env")
+        privateFunction
+            (functionNameFromId ident)
+            [environmentParameter, parameter] returnType $ \[env, param] -> do
+                typedEnvrionmentPointer <- maybeBitcastEnvironment env maybeEnvironmentType
+                returnValue <- emitExpression typedEnvrionmentPointer body
+                ret returnValue
 emitFunction ident maybeEnvironmentType body argument (FunTy _ _ from to) =
     do
         let parameterId = head $ boundVars argument

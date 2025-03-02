@@ -63,4 +63,5 @@ fmtStrForTy x =
         (TyApp (TyApp (TyCon (Id "," _)) leftTy) rightTy) ->
             "(" ++ fmtStrForTy leftTy ++ ", " ++ fmtStrForTy rightTy ++ ")"
         (TyApp (TyCon (Id "FloatArray" _)) _) -> "<array>"
+        (TyCon (Id "()" _)) -> "()"
         _ -> error "Unsupported"

@@ -1,0 +1,15 @@
+justUnit : ()
+justUnit = ()
+
+withNum : Int -> ((), Int)
+withNum x = ((), x)
+
+asArg : () -> ()
+asArg () = ()
+
+main : (Int, ())
+main =
+    let () = justUnit in
+    let () = asArg () in
+    let ((), x) = withNum 4 in
+    (x, ())

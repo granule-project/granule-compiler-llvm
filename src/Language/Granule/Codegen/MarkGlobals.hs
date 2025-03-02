@@ -11,12 +11,14 @@ data GlobalMarker =
     GlobalVar Type Id
     | BuiltinVar Type Id
     | PairConstr Type Type
+    | Unit
     deriving (Show, Eq)
 
 instance Pretty GlobalMarker where
     pretty (GlobalVar _ x) = pretty x
     pretty (BuiltinVar _ x) = pretty x
     pretty (PairConstr _ _) = "(,)"
+    pretty Unit = "()"
 
 markGlobals :: NormalisedAST () Type -> NormalisedAST GlobalMarker Type
 markGlobals (NormalisedAST dataDecls functionDefs valueDefs) =
@@ -42,6 +44,8 @@ markGlobalsInExpr globals =
               | otherwise = Var ty ident
           markInValue (ConstrF ty@(FunTy _ _ leftTy (FunTy _ _ rightTy _)) (Id "," _) []) =
             Ext ty (PairConstr leftTy rightTy)
+          markInValue (ConstrF ty@(TyCon (Id "()" _)) _ []) =
+            Ext ty Unit
           markInValue other =
               fixMapExtValue (\ty ev -> error "Extension value in AST before global marking.") other
 
