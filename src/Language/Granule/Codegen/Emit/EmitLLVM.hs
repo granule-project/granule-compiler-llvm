@@ -26,7 +26,8 @@ import Language.Granule.Codegen.Emit.MainOut (emitMainOut, findMainReturnType, l
 import Language.Granule.Codegen.ClosureFreeDef
 import Language.Granule.Codegen.NormalisedDef
 
-import Language.Granule.Syntax.Pattern (boundVars, Pattern)
+import Language.Granule.Codegen.Emit.MkId
+import Language.Granule.Syntax.Pattern (boundVars, Pattern(..))
 import Language.Granule.Syntax.Identifiers
 import Language.Granule.Syntax.Def (DataDecl)
 import Language.Granule.Syntax.Type hiding (Type)
@@ -100,6 +101,35 @@ emitFunctionDef def@(ClosureFreeFunctionDef sp ident environment body argument t
     where
       type_ ClosureFreeFunctionDef { closureFreeDefTypeScheme = (Forall _ _ _ ty) } = ty
 
+
+boundVar :: Pattern a -> Maybe Id
+boundVar (PVar _ _ _ v) = Just v
+boundVar PWild {}       = Nothing
+boundVar (PBox _ _ _ p) = boundVar p
+boundVar PInt {}        = Nothing
+boundVar PFloat {}      = Nothing
+boundVar (PConstr {})   = Nothing
+
+emitPairDest :: (MonadState EmitterState m, MonadModuleBuilder m, MonadIRBuilder m)
+                => [Pattern GrType]
+                -> Operand
+                -> m ()
+emitPairDest [left,right] param = do
+        let leftId = boundVar left
+        let rightId = boundVar right
+        case leftId of
+            Just id -> do
+                leftVal <- extractValue param [0]
+                addLocal id leftVal
+            Nothing -> pure ()
+        case rightId of
+            Just id -> do
+                rightVal <- extractValue param [1]
+                addLocal id rightVal
+            Nothing -> pure ()
+
+emitPairDest _ _ = error "not supported"
+
 emitFunction :: (MonadState EmitterState m, MonadModuleBuilder m, MonadFix m)
              => Id
              -> Maybe IrType
@@ -107,6 +137,19 @@ emitFunction :: (MonadState EmitterState m, MonadModuleBuilder m, MonadFix m)
              -> Pattern GrType
              -> GrType
              -> m Operand
+emitFunction ident maybeEnvironmentType body argument@(PConstr _ _ _ _ _ ps) (FunTy _ _ from@(TyApp (TyApp (TyCon (Id "," ",")) l) r) to) =
+    do
+        let parameterName = parameterNameFromId (MkId "__pair")
+        let (parameterType, returnType) = (llvmType from, llvmType to)
+        let parameter = (parameterType, parameterName)
+        let environmentParameter = (ptr i8, mkPName "env")
+        privateFunction
+            (functionNameFromId ident)
+            [environmentParameter, parameter] returnType $ \[env, param] -> do
+                emitPairDest ps param
+                typedEnvrionmentPointer <- maybeBitcastEnvironment env maybeEnvironmentType
+                returnValue <- emitExpression typedEnvrionmentPointer body
+                ret returnValue
 emitFunction ident maybeEnvironmentType body argument (FunTy _ _ from to) =
     do
         let parameterId = head $ boundVars argument
