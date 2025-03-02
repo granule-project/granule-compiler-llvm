@@ -52,6 +52,7 @@ llvmType (TyCon (MkId "Char")) = i8
 llvmType (TyCon (MkId "Handle")) = i8
 llvmType (TyCon (MkId "Bool")) = i1
 llvmType (Box coeffect ty) = llvmType ty
+llvmType (TyExists _ _ (Borrow _ ty)) = llvmType ty
 llvmType ty = error $ "Cannot lower the type " ++ show ty
 
 llvmTopLevelType :: GrType -> IrType
