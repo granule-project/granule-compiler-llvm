@@ -62,4 +62,5 @@ fmtStrForTy x =
         (TyCon (Id "Float" _)) -> "%.6f"
         (TyApp (TyApp (TyCon (Id "," _)) leftTy) rightTy) ->
             "(" ++ fmtStrForTy leftTy ++ ", " ++ fmtStrForTy rightTy ++ ")"
+        (TyCon (Id "()" _)) -> "()"
         _ -> error "Unsupported"

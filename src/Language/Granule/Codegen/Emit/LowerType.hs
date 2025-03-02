@@ -44,6 +44,8 @@ llvmType (FunTy _ _ from to) =
     llvmTypeForClosure $ llvmTypeForFunction (llvmType from) (llvmType to)
 llvmType (TyApp (TyApp (TyCon (MkId ",")) left) right) =
     StructureType False [llvmType left, llvmType right]
+llvmType (TyCon (MkId "()")) =
+    StructureType False []
 llvmType (TyCon (MkId "Int")) = i32
 llvmType (TyCon (MkId "Float")) = double
 llvmType (TyCon (MkId "Char")) = i8

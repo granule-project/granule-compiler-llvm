@@ -175,6 +175,9 @@ emitValue _ (ExtF a (Left (PairConstr leftTy rightTy))) = do
     let pairTy = IRType.StructureType False [llvmType leftTy, llvmType rightTy]
     return $ IR.ConstantOperand $ C.Undef pairTy
 
+emitValue _ (ExtF a (Left Unit)) = do
+    return $ IR.ConstantOperand (C.Struct Nothing False [])
+
 emitValue _ (ConstrF {}) =
     error "Encountered Constr. It should have been removed by constructor conversion."
 
