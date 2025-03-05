@@ -71,7 +71,7 @@ writeFloatArrayDef =
             dataField <- gep arrPtr' [int32 0, int32 1]
             dataPtr <- load dataField 0
 
-            valuePtr <- gep arrPtr' [idx]
+            valuePtr <- gep dataPtr [idx]
             store valuePtr 0 val
 
             return arrPtr
