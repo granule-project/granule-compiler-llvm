@@ -25,7 +25,6 @@ import Data.Either (isRight)
 import Data.List (intercalate, isPrefixOf, stripPrefix)
 import Data.List.Extra (breakOn)
 import Data.List.NonEmpty (NonEmpty, toList)
-import Data.Maybe (fromMaybe)
 import Data.Version (showVersion)
 import System.Exit
 
@@ -71,11 +70,7 @@ runGrOnFiles globPatterns config = let ?globals = grGlobals config in do
           let fileName = if pwd `isPrefixOf` path then takeFileName path else path
           let ?globals = ?globals{ globalsSourceFilePath = Just fileName } in do
             printInfo $ "Checking " <> fileName <> "..."
-            src <- preprocess
-              (rewriter config)
-              (keepBackup config)
-              path
-              (literateEnvName config)
+            src <- preprocess Nothing False path "granule"
             result <- run src
             printResult result
             return result
@@ -155,35 +150,34 @@ parseGrFlags
 
 
 data GrConfig = GrConfig
-  { grRewriter    :: Maybe (Rewriter)
-  , grKeepBackup      :: Maybe Bool
-  , grLiterateEnvName :: Maybe String
+  {
+    grShowVersion     :: Bool
   , grGlobals         :: Globals
+  , grcNoLink         :: Bool
+  , grcEmitLLVM       :: Bool
+  , grcClean          :: Bool
+  , grcOutput         :: Maybe String
   }
-
-rewriter :: GrConfig -> Maybe (Rewriter)
-rewriter c = grRewriter c <|> Nothing
-
-keepBackup :: GrConfig -> Bool
-keepBackup = fromMaybe False . grKeepBackup
-
-literateEnvName :: GrConfig -> String
-literateEnvName = fromMaybe "granule" . grLiterateEnvName
+  deriving (Show)
 
 instance Semigroup GrConfig where
   c1 <> c2 = GrConfig
-    { grRewriter    = grRewriter    c1 <|> grRewriter  c2
-    , grKeepBackup      = grKeepBackup      c1 <|> grKeepBackup      c2
-    , grLiterateEnvName = grLiterateEnvName c1 <|> grLiterateEnvName c2
-    , grGlobals         = grGlobals         c1 <>  grGlobals         c2
+    { grShowVersion     = grShowVersion c1 ||  grShowVersion c2
+    , grGlobals         = grGlobals     c1 <>  grGlobals c2
+    , grcNoLink         = grcNoLink     c1 ||  grcNoLink c2
+    , grcEmitLLVM       = grcEmitLLVM   c1 ||  grcEmitLLVM c2
+    , grcClean          = grcClean      c1 ||  grcClean c2
+    , grcOutput         = grcOutput     c2 <|> grcOutput c1
     }
 
 instance Monoid GrConfig where
   mempty = GrConfig
-    { grRewriter    = Nothing
-    , grKeepBackup      = Nothing
-    , grLiterateEnvName = Nothing
-    , grGlobals         = mempty
+    { grGlobals     = mempty
+    , grShowVersion = False
+    , grcNoLink     = False
+    , grcEmitLLVM   = False
+    , grcClean      = False
+    , grcOutput     = Nothing
     }
 
 getGrConfig :: IO ([FilePath], GrConfig)
@@ -220,7 +214,7 @@ getGrCommandLineArgs = customExecParser (prefs disambiguate) parseGrConfig
 parseGrConfig :: ParserInfo ([FilePath], GrConfig)
 parseGrConfig = info (go <**> helper) $ briefDesc
     <> (headerDoc . Just . string . unlines)
-            [ "The Granule Interpreter"
+            [ "The Granule LLVM Compiler"
             , "version: "     <> showVersion version
             , "branch: "      <> $(gitBranch)
             , "commit hash: " <> $(gitHash)
@@ -243,6 +237,11 @@ parseGrConfig = info (go <**> helper) $ briefDesc
             $ long "debug"
             <> help "Debug mode"
 
+        grShowVersion <-
+          flag False True
+            $ long "version"
+            <> help "Show version"
+
         globalsSuppressInfos <-
           flag Nothing (Just True)
             $ long "no-info"
@@ -264,11 +263,6 @@ parseGrConfig = info (go <**> helper) $ briefDesc
             $ long "alternative-colors"
             <> long "alternative-colours"
             <> help "Print success messages in blue instead of green (may help with color blindness)"
-
-        globalsNoEval <-
-          flag Nothing (Just True)
-            $ long "no-eval"
-            <> help "Don't evaluate, only type-check"
 
         globalsTimestamp <-
           flag Nothing (Just True)
@@ -297,140 +291,65 @@ parseGrConfig = info (go <**> helper) $ briefDesc
             <> help ("Program entry point. Defaults to " <> show entryPoint)
             <> metavar "ID"
 
-        globalsRewriteHoles <-
-          flag Nothing (Just True)
-            $ long "rewrite-holes"
-            <> help "WARNING: Destructively overwrite equations containing holes to pattern match on generated case-splits."
+        grcNoLink <-
+          flag False True
+            $ long "no-link"
+            <> help "Stop after generating object files, do not create executable"
 
-        globalsHoleLine <-
-          optional . option (auto @Int)
-            $ long "hole-line"
-            <> help "The line where the hole you wish to rewrite is located."
-            <> metavar "LINE"
+        grcEmitLLVM <-
+          flag False True
+            $ long "emit-llvm"
+            <> help "Generate LLVM bitcode files"
 
-        globalsHoleCol <-
-          optional . option (auto @Int)
-            $ long "hole-column"
-            <> help "The column where the hole you wish to rewrite is located."
-            <> metavar "COL"
+        grcClean <-
+          flag False True
+            $ long "clean"
+            <> short 'c'
+            <> help "Remove object files after successful linking"
 
-        globalsSynthesise <-
-          flag Nothing (Just True)
-            $ long "synthesise"
-            <> help "Turn on program synthesis. Must be used in conjunction with hole-line and hole-column"
-
-        globalsIgnoreHoles <-
-          flag Nothing (Just True)
-            $ long "ignore-holes"
-            <> help "Suppress information from holes (treat holes as well-typed)"
-
-        globalsSubtractiveSynthesis <-
-          flag Nothing (Just True)
-           $ long "subtractive"
-            <> help "Use subtractive mode for synthesis, rather than additive (default)."
-
-        globalsAlternateSynthesisMode <-
-          flag Nothing (Just True)
-           $ long "alternate"
-            <> help "Use alternate mode for synthesis (subtractive divisive, additive naive)"
-
-        grRewriter
-          <- flag'
-            (Just AsciiToUnicode)
-            (long "ascii-to-unicode" <> help "WARNING: Destructively overwrite ascii characters to multi-byte unicode.")
-          <|> flag Nothing
-            (Just UnicodeToAscii)
-            (long "unicode-to-ascii" <> help "WARNING: Destructively overwrite multi-byte unicode to ascii.")
-
-        grKeepBackup <-
-          flag Nothing (Just True)
-            $ long "keep-backup"
-            <> help "Keep a backup copy of the input file (only has an effect when destructively preprocessing.)"
-
-        grLiterateEnvName <-
+        grcOutput <-
           optional $ strOption
-            $ long "literate-env-name"
-            <> help ("Name of the code environment to check in literate files. Defaults to "
-                    <> show (literateEnvName mempty))
-
-        globalsBenchmark <-
-          flag Nothing (Just True)
-           $ long "benchmark"
-           <> help "Compute benchmarking results for the synthesis procedure."
-
-        globalsBenchmarkRaw <-
-          flag Nothing (Just True)
-           $ long "raw-data"
-           <> help "Show raw data of benchmarking data for synthesis."
-        
-        globalsInteractiveDebugging <-
-            flag Nothing (Just True)
-            $ long "interactive"
-            <> help "Interactive debug mode (for synthesis)"
-        
-        globalsHaskellSynth <-
-            flag Nothing (Just True)
-            $ long "linear-haskell"
-            <> help "Synthesise Linear Haskell programs"
-        
-        globalsSynthHtml <-
-            flag Nothing (Just True)
-            $ long "synth-html"
-            <> help "Output synthesis tree as HTML file"
-        
-        globalsExampleLimit <-
-            optional . option (auto @Int)
-            $ long "example-limit"
-            <> (help . unwords)
-            [ "Limit to the number of times synthed terms should be tried on examples before giving up"
-            , "Defaults to"
-            , show exampleLimit <> ""
-            ]
-        
-        globalsCartesianSynth <-
-            optional . option (auto @Int)
-            $ long "cart-synth"
-            <> (help . unwords)
-            [ "Synthesise using the cartesian semiring (for benchmarking)"
-            , "Defaults to"
-            , show cartSynth <> ""
-            ]
-
+            $ long "output"
+            <> short 'o'
+            <> help "Specify output file name"
+            <> metavar "FILENAME"
         pure
           ( globPatterns
           , GrConfig
-            { grRewriter
-            , grKeepBackup
-            , grLiterateEnvName
+            { grShowVersion
             , grGlobals = Globals
               { globalsDebugging
+              , globalsInteractiveDebugging = Nothing
               , globalsNoColors
               , globalsAlternativeColors
-              , globalsNoEval
+              , globalsNoEval = Nothing
               , globalsSuppressInfos
               , globalsSuppressErrors
-              , globalsIgnoreHoles
+              , globalsIgnoreHoles = Nothing
               , globalsTimestamp
               , globalsTesting = Nothing
               , globalsSolverTimeoutMillis
               , globalsIncludePath
               , globalsSourceFilePath = Nothing
               , globalsEntryPoint
-              , globalsRewriteHoles
-              , globalsHolePosition = (,) <$> globalsHoleLine <*> globalsHoleCol
-              , globalsSynthesise
-              , globalsBenchmark
-              , globalsBenchmarkRaw
-              , globalsSubtractiveSynthesis
-              , globalsAlternateSynthesisMode
+              , globalsRewriteHoles = Nothing
+              , globalsHolePosition = (,) <$> Nothing <*> Nothing
+              , globalsSynthesise = Nothing
+              , globalsBenchmark = Nothing
+              , globalsBenchmarkRaw = Nothing
+              , globalsSubtractiveSynthesis = Nothing
+              , globalsAlternateSynthesisMode = Nothing
+              , globalsCartesianSynth = Nothing
+              , globalsHaskellSynth = Nothing
+              , globalsSynthHtml = Nothing
+              , globalsExampleLimit = Nothing
               , globalsExtensions = []
-              , globalsInteractiveDebugging
-              , globalsHaskellSynth
-              , globalsSynthHtml
-              , globalsExampleLimit
-              , globalsCartesianSynth
               , globalsDocMode = Nothing
               }
+            , grcNoLink
+            , grcEmitLLVM
+            , grcClean
+            , grcOutput
             }
           )
       where
