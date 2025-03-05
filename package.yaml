@@ -1,64 +1,64 @@
 name: granule-compiler
-version: '0.9.5.0'
+version: "0.9.5.0"
 synopsis: The Granule compiler
 author: Ed Brown, Dominic Orchard, Vilem-Benjamin Liepelt, Harley Eades III, Preston Keel
 copyright: 2018-2024 authors
 license: BSD3
 github: granule-project/granule-compiler-llvm
 dependencies:
-- base >=4.10 && <5
+  - base >=4.10 && <5
 default-extensions:
-- LambdaCase
-- RecordWildCards
-- ImplicitParams
-- ScopedTypeVariables
-- OverloadedStrings
+  - LambdaCase
+  - RecordWildCards
+  - ImplicitParams
+  - ScopedTypeVariables
+  - OverloadedStrings
 
 ghc-options:
-- -O0
-- -Wall
-- -Werror
-- -Wcompat
-- -Wredundant-constraints
-- -Wno-unused-matches
-- -Wno-name-shadowing
-- -Wno-type-defaults
-- -fmax-pmcheck-models=10000000
+  - -O0
+  - -Wall
+  - -Werror
+  - -Wcompat
+  - -Wredundant-constraints
+  - -Wno-unused-matches
+  - -Wno-name-shadowing
+  - -Wno-type-defaults
+  - -fmax-pmcheck-models=10000000
 
 library:
   source-dirs: src
   exposed-modules:
-  - Language.Granule.Codegen.NormalisedDef
-  - Language.Granule.Codegen.TopsortDefinitions
-  - Language.Granule.Codegen.ClosureFreeDef
-  - Language.Granule.Codegen.ConvertClosures
-  - Language.Granule.Codegen.Emit.EmitLLVM
-  - Language.Granule.Codegen.Compile
-  - Language.Granule.Codegen.MarkGlobals
+    - Language.Granule.Codegen.NormalisedDef
+    - Language.Granule.Codegen.TopsortDefinitions
+    - Language.Granule.Codegen.ClosureFreeDef
+    - Language.Granule.Codegen.ConvertClosures
+    - Language.Granule.Codegen.Emit.EmitLLVM
+    - Language.Granule.Codegen.Compile
+    - Language.Granule.Codegen.MarkGlobals
   dependencies:
-  - granule-frontend
-  - mtl
-  - text
-  - containers
-  - llvm-hs-pure >= 6.0
-  - llvm-hs >= 6.0
+    - granule-frontend
+    - mtl
+    - text
+    - containers
+    - llvm-hs-pure >= 6.0
+    - llvm-hs >= 6.0
 
 executables:
-  grc:
+  grlc:
     main: Main.hs
     source-dirs: app
     dependencies:
-    - granule-frontend
-    - granule-compiler
-    - text
-    - llvm-hs-pure >= 6.0
-    - llvm-hs >= 6.0
-    - filepath
-    - directory
-    - gitrev
-    - extra
-    - Glob
-    - optparse-applicative
+      - granule-frontend
+      - granule-compiler
+      - text
+      - llvm-hs-pure >= 6.0
+      - llvm-hs >= 6.0
+      - filepath
+      - directory
+      - gitrev
+      - extra
+      - Glob
+      - optparse-applicative
 #    - llvm-hs-pretty
 
 tests:
@@ -67,26 +67,26 @@ tests:
     source-dirs: tests/hspec
     ghc-options: -fno-warn-partial-type-signatures
     dependencies:
-    - filemanip
-    - directory
-    - granule-frontend
-    - granule-compiler
-    - hspec
-    - QuickCheck
-    - mtl
-    - transformers >=0.5
+      - filemanip
+      - directory
+      - granule-frontend
+      - granule-compiler
+      - hspec
+      - QuickCheck
+      - mtl
+      - transformers >=0.5
   golden:
     main: Golden.hs
     source-dirs: tests/golden
     dependencies:
-    - granule-frontend
-    - granule-compiler
-    - llvm-hs-pure >= 6.0
-    - llvm-hs >= 6.0
-    - filepath
-    - process
-    - directory
-    - tasty
-    - tasty-golden
-    - string-conversions
-    - text
+      - granule-frontend
+      - granule-compiler
+      - llvm-hs-pure >= 6.0
+      - llvm-hs >= 6.0
+      - filepath
+      - process
+      - directory
+      - tasty
+      - tasty-golden
+      - string-conversions
+      - text

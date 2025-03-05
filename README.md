@@ -6,15 +6,15 @@ LLVM compiler for Granule. This is a prototype which compiles on the functional 
 
 Installation requires [Stack](https://docs.haskellstack.org/en/stable/README/) and [LLVM 12](https://releases.llvm.org/12.0.0/docs/index.html).
 
-Build and install using Stack. The following will install the `grc` binary:
+Build and install using Stack. The following will install the `grlc` binary:
 
 ```
-stack install :grc
+stack install
 ```
 
 ## Installing LLVM 12
 
-LLVM 12 is available on *some* macOS versions via Homebrew and *some* Linux distributions via their default apt repositories or the [LLVM apt repository](https://apt.llvm.org/).
+LLVM 12 is available on _some_ macOS versions via Homebrew and _some_ Linux distributions via their default apt repositories or the [LLVM apt repository](https://apt.llvm.org/).
 
 ```bash
 # mac
@@ -30,13 +30,14 @@ If you are not able to install through a package manager, or if you encounter an
 
 These are the steps I took to build LLVM 12 on an M1 MacBook running Sequoia 15.1. The process is very similar on Linux, minus the macOS specifics.
 
-
 1. Install build dependencies:
+
 ```bash
 brew install cmake ninja
 ```
 
 2. Get the source, create a build directory:
+
 ```bash
 git clone https://github.com/llvm/llvm-project -b release/12.x --single-branch --depth 1
 cd llvm-project/llvm
@@ -44,6 +45,7 @@ mkdir build && cd build
 ```
 
 3. Build. Choose a sensible installation path. The dylib flags are necessary, the rest are for build speed:
+
 ```
 # setup
 cmake -Wno-dev -G "Ninja" .. \
@@ -66,6 +68,7 @@ sudo ninja install
 ```
 
 4. Clean up and permissions. The `-12` suffix is sometimes expected on the dylib. The `install_name_tool` usage is for [SIP](https://support.apple.com/en-gb/102149):
+
 ```
 cd /usr/local/llvm-12/lib
 sudo ln -s libLLVM.dylib libLLVM-12.dylib
