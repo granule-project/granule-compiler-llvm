@@ -153,31 +153,34 @@ data GrConfig = GrConfig
   {
     grShowVersion     :: Bool
   , grGlobals         :: Globals
-  , grcNoLink         :: Bool
-  , grcEmitLLVM       :: Bool
-  , grcClean          :: Bool
+  , grcCompileOnly    :: Bool
   , grcOutput         :: Maybe String
+  , grcEmitLLVM       :: Bool
+  , grcEmitIR         :: Bool
+  , grcClean          :: Bool
   }
   deriving (Show)
 
 instance Semigroup GrConfig where
   c1 <> c2 = GrConfig
-    { grShowVersion     = grShowVersion c1 ||  grShowVersion c2
-    , grGlobals         = grGlobals     c1 <>  grGlobals c2
-    , grcNoLink         = grcNoLink     c1 ||  grcNoLink c2
-    , grcEmitLLVM       = grcEmitLLVM   c1 ||  grcEmitLLVM c2
-    , grcClean          = grcClean      c1 ||  grcClean c2
-    , grcOutput         = grcOutput     c2 <|> grcOutput c1
+    { grShowVersion     = grShowVersion  c1 ||  grShowVersion c2
+    , grGlobals         = grGlobals      c1 <>  grGlobals c2
+    , grcCompileOnly    = grcCompileOnly c1 ||  grcCompileOnly c2
+    , grcOutput         = grcOutput      c2 <|> grcOutput c1
+    , grcEmitLLVM       = grcEmitLLVM    c1 ||  grcEmitLLVM c2
+    , grcEmitIR         = grcEmitIR      c1 ||  grcEmitIR c2
+    , grcClean          = grcClean       c1 ||  grcClean c2
     }
 
 instance Monoid GrConfig where
   mempty = GrConfig
-    { grGlobals     = mempty
-    , grShowVersion = False
-    , grcNoLink     = False
-    , grcEmitLLVM   = False
-    , grcClean      = False
-    , grcOutput     = Nothing
+    { grGlobals      = mempty
+    , grShowVersion  = False
+    , grcCompileOnly = False
+    , grcOutput      = Nothing
+    , grcEmitLLVM    = False
+    , grcEmitIR      = False
+    , grcClean       = False
     }
 
 getGrConfig :: IO ([FilePath], GrConfig)
@@ -291,28 +294,35 @@ parseGrConfig = info (go <**> helper) $ briefDesc
             <> help ("Program entry point. Defaults to " <> show entryPoint)
             <> metavar "ID"
 
-        grcNoLink <-
+        grcCompileOnly <-
           flag False True
-            $ long "no-link"
-            <> help "Stop after generating object files, do not create executable"
-
-        grcEmitLLVM <-
-          flag False True
-            $ long "emit-llvm"
-            <> help "Generate LLVM bitcode files"
-
-        grcClean <-
-          flag False True
-            $ long "clean"
+            $ long "compile-only"
             <> short 'c'
-            <> help "Remove object files after successful linking"
+            <> help "Stop after generating object (.o) files, do not create executable"
 
         grcOutput <-
           optional $ strOption
             $ long "output"
             <> short 'o'
-            <> help "Specify output file name"
-            <> metavar "FILENAME"
+            <> help "Specify executable name"
+            <> metavar "NAME"
+
+        grcEmitLLVM <-
+          flag False True
+            $ long "emit-llvm"
+            <> help "Generate LLVM bitcode (.bc) files"
+
+        grcEmitIR <-
+          flag False True
+            $ long "emit-ir"
+            <> help "Generate LLVM IR (.ll) files"
+
+        grcClean <-
+          flag False True
+            $ long "clean"
+            <> help "Remove object (.o) files after successful linking"
+
+
         pure
           ( globPatterns
           , GrConfig
@@ -346,10 +356,11 @@ parseGrConfig = info (go <**> helper) $ briefDesc
               , globalsExtensions = []
               , globalsDocMode = Nothing
               }
-            , grcNoLink
-            , grcEmitLLVM
-            , grcClean
+            , grcCompileOnly
             , grcOutput
+            , grcEmitLLVM
+            , grcEmitIR
+            , grcClean
             }
           )
       where
