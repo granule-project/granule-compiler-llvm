@@ -26,7 +26,6 @@ import Language.Granule.Codegen.Emit.MainOut (emitMainOut, findMainReturnType, l
 import Language.Granule.Codegen.ClosureFreeDef
 import Language.Granule.Codegen.NormalisedDef
 
-import Language.Granule.Codegen.Emit.MkId
 import Language.Granule.Syntax.Pattern (boundVars, Pattern(..))
 import Language.Granule.Syntax.Identifiers
 import Language.Granule.Syntax.Def (DataDecl)
@@ -100,35 +99,6 @@ emitFunctionDef def@(ClosureFreeFunctionDef sp ident environment body argument t
     where
       type_ ClosureFreeFunctionDef { closureFreeDefTypeScheme = (Forall _ _ _ ty) } = ty
 
-
-boundVar :: Pattern a -> Maybe Id
-boundVar (PVar _ _ _ v) = Just v
-boundVar PWild {}       = Nothing
-boundVar (PBox _ _ _ p) = boundVar p
-boundVar PInt {}        = Nothing
-boundVar PFloat {}      = Nothing
-boundVar (PConstr {})   = Nothing
-
-emitPairDest :: (MonadState EmitterState m, MonadModuleBuilder m, MonadIRBuilder m)
-                => [Pattern GrType]
-                -> Operand
-                -> m ()
-emitPairDest [left,right] param = do
-        let leftId = boundVar left
-        let rightId = boundVar right
-        case leftId of
-            Just id -> do
-                leftVal <- extractValue param [0]
-                addLocal id leftVal
-            Nothing -> pure ()
-        case rightId of
-            Just id -> do
-                rightVal <- extractValue param [1]
-                addLocal id rightVal
-            Nothing -> pure ()
-
-emitPairDest _ _ = error "not supported"
-
 emitFunction :: (MonadState EmitterState m, MonadModuleBuilder m, MonadFix m)
              => Id
              -> Maybe IrType
@@ -136,46 +106,39 @@ emitFunction :: (MonadState EmitterState m, MonadModuleBuilder m, MonadFix m)
              -> Pattern GrType
              -> GrType
              -> m Operand
-emitFunction ident maybeEnvironmentType body argument@(PConstr _ _ _ _ _ ps) (FunTy _ _ from@(TyApp (TyApp (TyCon (Id "," ",")) l) r) to) =
-    do
-        let parameterName = parameterNameFromId (MkId "__pair")
-        let (parameterType, returnType) = (llvmType from, llvmType to)
-        let parameter = (parameterType, parameterName)
-        let environmentParameter = (ptr i8, mkPName "env")
-        privateFunction
-            (functionNameFromId ident)
-            [environmentParameter, parameter] returnType $ \[env, param] -> do
-                emitPairDest ps param
-                typedEnvrionmentPointer <- maybeBitcastEnvironment env maybeEnvironmentType
-                returnValue <- emitExpression typedEnvrionmentPointer body
-                ret returnValue
-emitFunction ident maybeEnvironmentType body argument@(PConstr  {}) (FunTy _ _ from@(TyCon (Id "()" "()")) to) =
-    do
-        let parameterName = parameterNameFromId (MkId "__unit")
-        let (parameterType, returnType) = (llvmType from, llvmType to)
-        let parameter = (parameterType, parameterName)
-        let environmentParameter = (ptr i8, mkPName "env")
-        privateFunction
-            (functionNameFromId ident)
-            [environmentParameter, parameter] returnType $ \[env, param] -> do
-                typedEnvrionmentPointer <- maybeBitcastEnvironment env maybeEnvironmentType
-                returnValue <- emitExpression typedEnvrionmentPointer body
-                ret returnValue
 emitFunction ident maybeEnvironmentType body argument (FunTy _ _ from to) =
     do
-        let parameterId = head $ boundVars argument
-        let parameterName = parameterNameFromId parameterId
         let (parameterType, returnType) = (llvmType from, llvmType to)
-        let parameter = (parameterType, parameterName)
+        let parameter = (parameterType, paramName argument)
         let environmentParameter = (ptr i8, mkPName "env")
         privateFunction
             (functionNameFromId ident)
             [environmentParameter, parameter] returnType $ \[env, param] -> do
-                addLocal parameterId param
+                emitArg argument param
                 typedEnvrionmentPointer <- maybeBitcastEnvironment env maybeEnvironmentType
                 returnValue <- emitExpression typedEnvrionmentPointer body
                 ret returnValue
 emitFunction _ _ _ _ _ = error "cannot emit function with non function type"
+
+paramName :: Pattern GrType -> ParameterName
+paramName (PConstr _ _ _ (Id "," _) _ _) = parameterNameFromId $ mkId "pair"
+paramName (PConstr _ _ _ (Id "()" _) _ _) = parameterNameFromId $ mkId "unit"
+paramName pat = parameterNameFromId $ head $ boundVars pat
+
+emitArg :: (MonadState EmitterState m, MonadModuleBuilder m, MonadIRBuilder m)
+          => Pattern GrType
+          -> Operand
+          -> m ()
+emitArg (PVar _ _ _ var) param = addLocal var param
+emitArg (PWild {}) param = pure ()
+emitArg (PBox _ _ _ pat) param = emitArg pat param
+emitArg (PConstr _ _ _ (Id "," _) _ [lpat, rpat]) param = do
+  left <- extractValue param [0]
+  emitArg lpat left
+  rightV <- extractValue param [1]
+  emitArg rpat rightV
+emitArg (PConstr _ _ _ (Id "()" _) _ []) param = pure ()
+emitArg p _ = error ("Unsupported param pattern:\n" ++ show p)
 
 maybeBitcastEnvironment :: (MonadIRBuilder m)
                         => Operand
