@@ -94,7 +94,7 @@ printResult
   -> IO ()
 printResult = \case
     Left err -> printError err
-    Right CompileSuccess -> printSuccess "Compiled!"
+    Right CompileSuccess -> pure ()
 
 {-| Run the input through the type checker and evaluate.
 -}
@@ -125,6 +125,7 @@ run input config = let ?globals = maybe mempty grGlobals (getEmbeddedGrFlags inp
               Left (e :: String) ->
                 return $ Left $ CompileError e
               Right moduleAST -> do
+                printSuccess "Compiled!"
                 withHostTargetMachineDefault $ \machine ->
                   withContext $ \context ->
                     withModuleFromAST context moduleAST $ \mo -> do
@@ -144,6 +145,8 @@ run input config = let ?globals = maybe mempty grGlobals (getEmbeddedGrFlags inp
                           then return $ Right CompileSuccess
                         else do
                           callProcess "clang" [obj, "-o", name]
+                          when (grcRun config) $
+                            callProcess ("./" ++ name) []
                           when (grcClean config) $
                             removeFile obj `catch` (\(_ :: SomeException) -> return ())
                           return $ Right CompileSuccess
@@ -176,6 +179,7 @@ data GrConfig = GrConfig
   , grcEmitLLVM       :: Bool
   , grcEmitIR         :: Bool
   , grcClean          :: Bool
+  , grcRun            :: Bool
   }
   deriving (Show)
 
@@ -188,6 +192,7 @@ instance Semigroup GrConfig where
     , grcEmitLLVM       = grcEmitLLVM    c1 ||  grcEmitLLVM c2
     , grcEmitIR         = grcEmitIR      c1 ||  grcEmitIR c2
     , grcClean          = grcClean       c1 ||  grcClean c2
+    , grcRun            = grcRun         c1 ||  grcRun c2
     }
 
 instance Monoid GrConfig where
@@ -199,6 +204,7 @@ instance Monoid GrConfig where
     , grcEmitLLVM    = False
     , grcEmitIR      = False
     , grcClean       = False
+    , grcRun         = False
     }
 
 getGrConfig :: IO ([FilePath], GrConfig)
@@ -340,6 +346,10 @@ parseGrConfig = info (go <**> helper) $ briefDesc
             $ long "clean"
             <> help "Remove object (.o) files after successful linking"
 
+        grcRun <-
+          flag False True
+            $ long "run"
+            <> help "Run the executable"
 
         pure
           ( globPatterns
@@ -379,6 +389,7 @@ parseGrConfig = info (go <**> helper) $ briefDesc
             , grcEmitLLVM
             , grcEmitIR
             , grcClean
+            , grcRun
             }
           )
       where
