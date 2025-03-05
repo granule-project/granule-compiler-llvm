@@ -21,12 +21,12 @@ import Language.Granule.Codegen.Emit.Names
 import Language.Granule.Codegen.Emit.LowerClosure (emitEnvironmentType, emitTrivialClosure)
 import Language.Granule.Codegen.Emit.LowerType (llvmTopLevelType, llvmType)
 import Language.Granule.Codegen.Emit.LowerExpression (emitExpression)
-import Language.Granule.Codegen.Emit.MainOut (findMainReturnType, externWrite, loadMainValue, write)
+import Language.Granule.Codegen.Emit.MainOut (emitMainOut, findMainReturnType, loadMainValue, mainOut)
 
 import Language.Granule.Codegen.ClosureFreeDef
 import Language.Granule.Codegen.NormalisedDef
 
-import Language.Granule.Syntax.Pattern (boundVars, Pattern)
+import Language.Granule.Syntax.Pattern (boundVars, Pattern(..))
 import Language.Granule.Syntax.Identifiers
 import Language.Granule.Syntax.Def (DataDecl)
 import Language.Granule.Syntax.Type hiding (Type)
@@ -44,9 +44,10 @@ emitLLVM moduleName (ClosureFreeAST dataDecls functionDefs valueDefs) =
     in Right $ buildModule (fromString moduleName) $ do
         _ <- extern (mkName "malloc") [i64] (ptr i8)
         _ <- extern (mkName "abort") [] void
+        _ <- externVarArgs (mkName "printf") [ptr i8] i32
         _ <- emitBuiltins
         let mainTy = findMainReturnType valueDefs
-        _ <- externWrite mainTy
+        _ <- emitMainOut mainTy
         mapM_ emitDataDecl dataDecls
         mapM_ emitEnvironmentType functionDefs
         mapM_ emitFunctionDef functionDefs
@@ -60,7 +61,7 @@ emitGlobalInitializer valueInitPairs mainTy =
             value <- call initializer []
             store global 4 value) valueInitPairs
         mainValue <- loadMainValue mainTy
-        _ <- call (IR.ConstantOperand $ write mainTy) [(mainValue, [])]
+        _ <- call (IR.ConstantOperand $ mainOut mainTy) [(mainValue, [])]
         ret (int32 0)
 
 emitValueDef :: MonadState EmitterState m
@@ -107,19 +108,37 @@ emitFunction :: (MonadState EmitterState m, MonadModuleBuilder m, MonadFix m)
              -> m Operand
 emitFunction ident maybeEnvironmentType body argument (FunTy _ _ from to) =
     do
-        let parameterId = head $ boundVars argument
-        let parameterName = parameterNameFromId parameterId
         let (parameterType, returnType) = (llvmType from, llvmType to)
-        let parameter = (parameterType, parameterName)
+        let parameter = (parameterType, paramName argument)
         let environmentParameter = (ptr i8, mkPName "env")
         privateFunction
             (functionNameFromId ident)
             [environmentParameter, parameter] returnType $ \[env, param] -> do
-                addLocal parameterId param
+                emitArg argument param
                 typedEnvrionmentPointer <- maybeBitcastEnvironment env maybeEnvironmentType
                 returnValue <- emitExpression typedEnvrionmentPointer body
                 ret returnValue
 emitFunction _ _ _ _ _ = error "cannot emit function with non function type"
+
+paramName :: Pattern GrType -> ParameterName
+paramName (PConstr _ _ _ (Id "," _) _ _) = parameterNameFromId $ mkId "pair"
+paramName (PConstr _ _ _ (Id "()" _) _ _) = parameterNameFromId $ mkId "unit"
+paramName pat = parameterNameFromId $ head $ boundVars pat
+
+emitArg :: (MonadState EmitterState m, MonadModuleBuilder m, MonadIRBuilder m)
+          => Pattern GrType
+          -> Operand
+          -> m ()
+emitArg (PVar _ _ _ var) param = addLocal var param
+emitArg (PWild {}) param = pure ()
+emitArg (PBox _ _ _ pat) param = emitArg pat param
+emitArg (PConstr _ _ _ (Id "," _) _ [lpat, rpat]) param = do
+  left <- extractValue param [0]
+  emitArg lpat left
+  rightV <- extractValue param [1]
+  emitArg rpat rightV
+emitArg (PConstr _ _ _ (Id "()" _) _ []) param = pure ()
+emitArg p _ = error ("Unsupported param pattern:\n" ++ show p)
 
 maybeBitcastEnvironment :: (MonadIRBuilder m)
                         => Operand

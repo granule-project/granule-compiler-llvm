@@ -48,7 +48,19 @@ emitExpr :: (MonadState EmitterState m, MonadModuleBuilder m, MonadIRBuilder m, 
          => Maybe Operand
          -> ExprF (Either GlobalMarker ClosureMarker) Type (EmitableExpr, m Operand) (EmitableValue, m Operand)
          -> m Operand
-emitExpr environment (AppF _ ty _ (_, emitFunction) (_, emitArg)) =
+emitExpr environment (AppF _ _ _ (ExprFix2 (ValF _ _ _ (ExprFix2 (ExtF _ (Left (PairConstr _ _))))), emitFunction) (_, emitArg)) =
+    do
+        pair <- emitFunction
+        leftVal <- emitArg
+        insertValue pair leftVal [0]
+
+emitExpr environment (AppF _ _ _ (ExprFix2 ((AppF _ _ _ (ExprFix2 (ValF _ _ _ (ExprFix2 (ExtF _ (Left (PairConstr _ _)))))) _)), emitFunction) (_, emitArg)) =
+    do
+        pair <- emitFunction
+        rightVal <- emitArg
+        insertValue pair rightVal [1]
+
+emitExpr environment (AppF _ _ _ (_, emitFunction) (_, emitArg)) =
     do
         closure <- emitFunction
         argument <- emitArg
@@ -158,6 +170,13 @@ emitValue _ (ConstrF ty (MkId "(,)") []) =
     environmentTypedPtr <- bitcast environmentVoidPtr (ptr environmentType)
     emitEnvironmentInit variableInitializers environmentTypedPtr maybeParentEnv
     emitClosureConstruction ident ty environmentVoidPtr -}
+
+emitValue _ (ExtF a (Left (PairConstr leftTy rightTy))) = do
+    let pairTy = IRType.StructureType False [llvmType leftTy, llvmType rightTy]
+    return $ IR.ConstantOperand $ C.Undef pairTy
+
+emitValue _ (ExtF a (Left Unit)) = do
+    return $ IR.ConstantOperand (C.Struct Nothing False [])
 
 emitValue _ (ConstrF {}) =
     error "Encountered Constr. It should have been removed by constructor conversion."
