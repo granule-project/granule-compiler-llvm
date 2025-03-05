@@ -17,20 +17,22 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-import Control.Exception (SomeException, displayException, try)
-import Control.Monad ((<=<), forM)
+import Control.Exception (SomeException, displayException, try, catch)
+import Control.Monad ((<=<), forM, when)
 import Development.GitRev
 import Data.Char (isSpace)
 import Data.Either (isRight)
 import Data.List (intercalate, isPrefixOf, stripPrefix)
 import Data.List.Extra (breakOn)
 import Data.List.NonEmpty (NonEmpty, toList)
+import Data.Maybe (fromMaybe)
 import Data.Version (showVersion)
 import System.Exit
 
-import System.Directory (getAppUserDataDirectory, getCurrentDirectory)
+import System.Directory (getAppUserDataDirectory, getCurrentDirectory, removeFile)
 import System.FilePath (takeFileName)
 import System.FilePath.Posix (takeBaseName)
+import System.Process (callProcess)
 import "Glob" System.FilePath.Glob (glob)
 import Options.Applicative
 import Options.Applicative.Help.Pretty (string)
@@ -71,17 +73,17 @@ runGrOnFiles globPatterns config = let ?globals = grGlobals config in do
           let ?globals = ?globals{ globalsSourceFilePath = Just fileName } in do
             printInfo $ "Checking " <> fileName <> "..."
             src <- preprocess Nothing False path "granule"
-            result <- run src
+            result <- run src config
             printResult result
             return result
     if all isRight (concat results) then exitSuccess else exitFailure
 
 runGrOnStdIn :: GrConfig -> IO ()
-runGrOnStdIn GrConfig{..}
+runGrOnStdIn config@GrConfig{..}
   = let ?globals = grGlobals{ globalsSourceFilePath = Just "stdin" } in do
       printInfo "Reading from stdin: confirm input with `enter+ctrl-d` or exit with `ctrl-c`"
       debugM "Globals" (show ?globals)
-      result <- getContents >>= run
+      result <- getContents >>= (`run` config)
       printResult result
       if isRight result then exitSuccess else exitFailure
 
@@ -99,8 +101,9 @@ printResult = \case
 run
   :: (?globals :: Globals)
   => String
+  -> GrConfig
   -> IO (Either CompileError CompileResult)
-run input = let ?globals = maybe mempty grGlobals (getEmbeddedGrFlags input) <> ?globals in do
+run input config = let ?globals = maybe mempty grGlobals (getEmbeddedGrFlags input) <> ?globals in do
     result <- try $ parseAndDoImportsAndFreshenDefs input
     case result of
       Left (e :: SomeException) -> return . Left . ParseError $ show e
@@ -125,10 +128,25 @@ run input = let ?globals = maybe mempty grGlobals (getEmbeddedGrFlags input) <> 
                 withHostTargetMachineDefault $ \machine ->
                   withContext $ \context ->
                     withModuleFromAST context moduleAST $ \mo -> do
-                      writeBitcodeToFile (File (moduleName ++ ".bc")) mo
-                      writeObjectToFile machine (File (moduleName ++ ".o")) mo
-                return $ Right CompileSuccess
-
+                      let name = fromMaybe moduleName (grcOutput config)
+                      if grcEmitLLVM config
+                        then do
+                          writeBitcodeToFile (File (name ++ ".bc")) mo
+                          return $ Right CompileSuccess
+                      else if grcEmitIR config
+                        then do
+                          writeLLVMAssemblyToFile (File (name ++ ".ll")) mo
+                          return $ Right CompileSuccess
+                      else do
+                        let obj = name ++ ".o"
+                        writeObjectToFile machine (File obj) mo
+                        if grcCompileOnly config
+                          then return $ Right CompileSuccess
+                        else do
+                          callProcess "clang" [obj, "-o", name]
+                          when (grcClean config) $
+                            removeFile obj `catch` (\(_ :: SomeException) -> return ())
+                          return $ Right CompileSuccess
 
 -- | Get the flags embedded in the first line of a file, e.g.
 -- "-- gr --no-eval"

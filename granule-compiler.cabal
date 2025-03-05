@@ -58,9 +58,10 @@ library
       base >=4.10 && <5
     , containers
     , granule-frontend
-    , llvm-hs >=6.0
-    , llvm-hs-pure >=6.0
+    , llvm-hs ==12.*
+    , llvm-hs-pure ==12.*
     , mtl
+    , process
     , text
   default-language: Haskell2010
 
@@ -86,9 +87,10 @@ executable grlc
     , gitrev
     , granule-compiler
     , granule-frontend
-    , llvm-hs >=6.0
-    , llvm-hs-pure >=6.0
+    , llvm-hs ==12.*
+    , llvm-hs-pure ==12.*
     , optparse-applicative
+    , process
     , text
   default-language: Haskell2010
 
@@ -119,6 +121,7 @@ test-suite compiler-spec
     , granule-frontend
     , hspec
     , mtl
+    , process
     , transformers >=0.5
   default-language: Haskell2010
 
@@ -142,8 +145,8 @@ test-suite golden
     , filepath
     , granule-compiler
     , granule-frontend
-    , llvm-hs >=6.0
-    , llvm-hs-pure >=6.0
+    , llvm-hs ==12.*
+    , llvm-hs-pure ==12.*
     , process
     , string-conversions
     , tasty
