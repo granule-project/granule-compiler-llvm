@@ -17,8 +17,8 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-import Control.Exception (SomeException, displayException, try)
-import Control.Monad ((<=<), forM)
+import Control.Exception (SomeException, displayException, try, catch)
+import Control.Monad ((<=<), forM, when)
 import Development.GitRev
 import Data.Char (isSpace)
 import Data.Either (isRight)
@@ -29,9 +29,10 @@ import Data.Maybe (fromMaybe)
 import Data.Version (showVersion)
 import System.Exit
 
-import System.Directory (getAppUserDataDirectory, getCurrentDirectory)
+import System.Directory (getAppUserDataDirectory, getCurrentDirectory, removeFile)
 import System.FilePath (takeFileName)
 import System.FilePath.Posix (takeBaseName)
+import System.Process (callProcess)
 import "Glob" System.FilePath.Glob (glob)
 import Options.Applicative
 import Options.Applicative.Help.Pretty (string)
@@ -71,22 +72,18 @@ runGrOnFiles globPatterns config = let ?globals = grGlobals config in do
           let fileName = if pwd `isPrefixOf` path then takeFileName path else path
           let ?globals = ?globals{ globalsSourceFilePath = Just fileName } in do
             printInfo $ "Checking " <> fileName <> "..."
-            src <- preprocess
-              (rewriter config)
-              (keepBackup config)
-              path
-              (literateEnvName config)
-            result <- run src
+            src <- preprocess Nothing False path "granule"
+            result <- run src config
             printResult result
             return result
     if all isRight (concat results) then exitSuccess else exitFailure
 
 runGrOnStdIn :: GrConfig -> IO ()
-runGrOnStdIn GrConfig{..}
+runGrOnStdIn config@GrConfig{..}
   = let ?globals = grGlobals{ globalsSourceFilePath = Just "stdin" } in do
       printInfo "Reading from stdin: confirm input with `enter+ctrl-d` or exit with `ctrl-c`"
       debugM "Globals" (show ?globals)
-      result <- getContents >>= run
+      result <- getContents >>= (`run` config)
       printResult result
       if isRight result then exitSuccess else exitFailure
 
@@ -97,15 +94,16 @@ printResult
   -> IO ()
 printResult = \case
     Left err -> printError err
-    Right CompileSuccess -> printSuccess "Compiled!"
+    Right CompileSuccess -> pure ()
 
 {-| Run the input through the type checker and evaluate.
 -}
 run
   :: (?globals :: Globals)
   => String
+  -> GrConfig
   -> IO (Either CompileError CompileResult)
-run input = let ?globals = maybe mempty grGlobals (getEmbeddedGrFlags input) <> ?globals in do
+run input config = let ?globals = maybe mempty grGlobals (getEmbeddedGrFlags input) <> ?globals in do
     result <- try $ parseAndDoImportsAndFreshenDefs input
     case result of
       Left (e :: SomeException) -> return . Left . ParseError $ show e
@@ -127,13 +125,31 @@ run input = let ?globals = maybe mempty grGlobals (getEmbeddedGrFlags input) <> 
               Left (e :: String) ->
                 return $ Left $ CompileError e
               Right moduleAST -> do
+                printSuccess "Compiled!"
                 withHostTargetMachineDefault $ \machine ->
                   withContext $ \context ->
                     withModuleFromAST context moduleAST $ \mo -> do
-                      writeBitcodeToFile (File (moduleName ++ ".bc")) mo
-                      writeObjectToFile machine (File (moduleName ++ ".o")) mo
-                return $ Right CompileSuccess
-
+                      let name = fromMaybe moduleName (grcOutput config)
+                      if grcEmitLLVM config
+                        then do
+                          writeBitcodeToFile (File (name ++ ".bc")) mo
+                          return $ Right CompileSuccess
+                      else if grcEmitIR config
+                        then do
+                          writeLLVMAssemblyToFile (File (name ++ ".ll")) mo
+                          return $ Right CompileSuccess
+                      else do
+                        let obj = name ++ ".o"
+                        writeObjectToFile machine (File obj) mo
+                        if grcCompileOnly config
+                          then return $ Right CompileSuccess
+                        else do
+                          callProcess "clang" [obj, "-o", name]
+                          when (grcRun config) $
+                            callProcess ("./" ++ name) []
+                          when (grcClean config) $
+                            removeFile obj `catch` (\(_ :: SomeException) -> return ())
+                          return $ Right CompileSuccess
 
 -- | Get the flags embedded in the first line of a file, e.g.
 -- "-- gr --no-eval"
@@ -155,35 +171,40 @@ parseGrFlags
 
 
 data GrConfig = GrConfig
-  { grRewriter    :: Maybe (Rewriter)
-  , grKeepBackup      :: Maybe Bool
-  , grLiterateEnvName :: Maybe String
+  {
+    grShowVersion     :: Bool
   , grGlobals         :: Globals
+  , grcCompileOnly    :: Bool
+  , grcOutput         :: Maybe String
+  , grcEmitLLVM       :: Bool
+  , grcEmitIR         :: Bool
+  , grcClean          :: Bool
+  , grcRun            :: Bool
   }
-
-rewriter :: GrConfig -> Maybe (Rewriter)
-rewriter c = grRewriter c <|> Nothing
-
-keepBackup :: GrConfig -> Bool
-keepBackup = fromMaybe False . grKeepBackup
-
-literateEnvName :: GrConfig -> String
-literateEnvName = fromMaybe "granule" . grLiterateEnvName
+  deriving (Show)
 
 instance Semigroup GrConfig where
   c1 <> c2 = GrConfig
-    { grRewriter    = grRewriter    c1 <|> grRewriter  c2
-    , grKeepBackup      = grKeepBackup      c1 <|> grKeepBackup      c2
-    , grLiterateEnvName = grLiterateEnvName c1 <|> grLiterateEnvName c2
-    , grGlobals         = grGlobals         c1 <>  grGlobals         c2
+    { grShowVersion     = grShowVersion  c1 ||  grShowVersion c2
+    , grGlobals         = grGlobals      c1 <>  grGlobals c2
+    , grcCompileOnly    = grcCompileOnly c1 ||  grcCompileOnly c2
+    , grcOutput         = grcOutput      c2 <|> grcOutput c1
+    , grcEmitLLVM       = grcEmitLLVM    c1 ||  grcEmitLLVM c2
+    , grcEmitIR         = grcEmitIR      c1 ||  grcEmitIR c2
+    , grcClean          = grcClean       c1 ||  grcClean c2
+    , grcRun            = grcRun         c1 ||  grcRun c2
     }
 
 instance Monoid GrConfig where
   mempty = GrConfig
-    { grRewriter    = Nothing
-    , grKeepBackup      = Nothing
-    , grLiterateEnvName = Nothing
-    , grGlobals         = mempty
+    { grGlobals      = mempty
+    , grShowVersion  = False
+    , grcCompileOnly = False
+    , grcOutput      = Nothing
+    , grcEmitLLVM    = False
+    , grcEmitIR      = False
+    , grcClean       = False
+    , grcRun         = False
     }
 
 getGrConfig :: IO ([FilePath], GrConfig)
@@ -220,7 +241,7 @@ getGrCommandLineArgs = customExecParser (prefs disambiguate) parseGrConfig
 parseGrConfig :: ParserInfo ([FilePath], GrConfig)
 parseGrConfig = info (go <**> helper) $ briefDesc
     <> (headerDoc . Just . string . unlines)
-            [ "The Granule Interpreter"
+            [ "The Granule LLVM Compiler"
             , "version: "     <> showVersion version
             , "branch: "      <> $(gitBranch)
             , "commit hash: " <> $(gitHash)
@@ -243,6 +264,11 @@ parseGrConfig = info (go <**> helper) $ briefDesc
             $ long "debug"
             <> help "Debug mode"
 
+        grShowVersion <-
+          flag False True
+            $ long "version"
+            <> help "Show version"
+
         globalsSuppressInfos <-
           flag Nothing (Just True)
             $ long "no-info"
@@ -264,11 +290,6 @@ parseGrConfig = info (go <**> helper) $ briefDesc
             $ long "alternative-colors"
             <> long "alternative-colours"
             <> help "Print success messages in blue instead of green (may help with color blindness)"
-
-        globalsNoEval <-
-          flag Nothing (Just True)
-            $ long "no-eval"
-            <> help "Don't evaluate, only type-check"
 
         globalsTimestamp <-
           flag Nothing (Just True)
@@ -297,140 +318,78 @@ parseGrConfig = info (go <**> helper) $ briefDesc
             <> help ("Program entry point. Defaults to " <> show entryPoint)
             <> metavar "ID"
 
-        globalsRewriteHoles <-
-          flag Nothing (Just True)
-            $ long "rewrite-holes"
-            <> help "WARNING: Destructively overwrite equations containing holes to pattern match on generated case-splits."
+        grcCompileOnly <-
+          flag False True
+            $ long "compile-only"
+            <> short 'c'
+            <> help "Stop after generating object (.o) files, do not create executable"
 
-        globalsHoleLine <-
-          optional . option (auto @Int)
-            $ long "hole-line"
-            <> help "The line where the hole you wish to rewrite is located."
-            <> metavar "LINE"
-
-        globalsHoleCol <-
-          optional . option (auto @Int)
-            $ long "hole-column"
-            <> help "The column where the hole you wish to rewrite is located."
-            <> metavar "COL"
-
-        globalsSynthesise <-
-          flag Nothing (Just True)
-            $ long "synthesise"
-            <> help "Turn on program synthesis. Must be used in conjunction with hole-line and hole-column"
-
-        globalsIgnoreHoles <-
-          flag Nothing (Just True)
-            $ long "ignore-holes"
-            <> help "Suppress information from holes (treat holes as well-typed)"
-
-        globalsSubtractiveSynthesis <-
-          flag Nothing (Just True)
-           $ long "subtractive"
-            <> help "Use subtractive mode for synthesis, rather than additive (default)."
-
-        globalsAlternateSynthesisMode <-
-          flag Nothing (Just True)
-           $ long "alternate"
-            <> help "Use alternate mode for synthesis (subtractive divisive, additive naive)"
-
-        grRewriter
-          <- flag'
-            (Just AsciiToUnicode)
-            (long "ascii-to-unicode" <> help "WARNING: Destructively overwrite ascii characters to multi-byte unicode.")
-          <|> flag Nothing
-            (Just UnicodeToAscii)
-            (long "unicode-to-ascii" <> help "WARNING: Destructively overwrite multi-byte unicode to ascii.")
-
-        grKeepBackup <-
-          flag Nothing (Just True)
-            $ long "keep-backup"
-            <> help "Keep a backup copy of the input file (only has an effect when destructively preprocessing.)"
-
-        grLiterateEnvName <-
+        grcOutput <-
           optional $ strOption
-            $ long "literate-env-name"
-            <> help ("Name of the code environment to check in literate files. Defaults to "
-                    <> show (literateEnvName mempty))
+            $ long "output"
+            <> short 'o'
+            <> help "Specify executable name"
+            <> metavar "NAME"
 
-        globalsBenchmark <-
-          flag Nothing (Just True)
-           $ long "benchmark"
-           <> help "Compute benchmarking results for the synthesis procedure."
+        grcEmitLLVM <-
+          flag False True
+            $ long "emit-llvm"
+            <> help "Generate LLVM bitcode (.bc) files"
 
-        globalsBenchmarkRaw <-
-          flag Nothing (Just True)
-           $ long "raw-data"
-           <> help "Show raw data of benchmarking data for synthesis."
-        
-        globalsInteractiveDebugging <-
-            flag Nothing (Just True)
-            $ long "interactive"
-            <> help "Interactive debug mode (for synthesis)"
-        
-        globalsHaskellSynth <-
-            flag Nothing (Just True)
-            $ long "linear-haskell"
-            <> help "Synthesise Linear Haskell programs"
-        
-        globalsSynthHtml <-
-            flag Nothing (Just True)
-            $ long "synth-html"
-            <> help "Output synthesis tree as HTML file"
-        
-        globalsExampleLimit <-
-            optional . option (auto @Int)
-            $ long "example-limit"
-            <> (help . unwords)
-            [ "Limit to the number of times synthed terms should be tried on examples before giving up"
-            , "Defaults to"
-            , show exampleLimit <> ""
-            ]
-        
-        globalsCartesianSynth <-
-            optional . option (auto @Int)
-            $ long "cart-synth"
-            <> (help . unwords)
-            [ "Synthesise using the cartesian semiring (for benchmarking)"
-            , "Defaults to"
-            , show cartSynth <> ""
-            ]
+        grcEmitIR <-
+          flag False True
+            $ long "emit-ir"
+            <> help "Generate LLVM IR (.ll) files"
+
+        grcClean <-
+          flag False True
+            $ long "clean"
+            <> help "Remove object (.o) files after successful linking"
+
+        grcRun <-
+          flag False True
+            $ long "run"
+            <> help "Run the executable"
 
         pure
           ( globPatterns
           , GrConfig
-            { grRewriter
-            , grKeepBackup
-            , grLiterateEnvName
+            { grShowVersion
             , grGlobals = Globals
               { globalsDebugging
+              , globalsInteractiveDebugging = Nothing
               , globalsNoColors
               , globalsAlternativeColors
-              , globalsNoEval
+              , globalsNoEval = Nothing
               , globalsSuppressInfos
               , globalsSuppressErrors
-              , globalsIgnoreHoles
+              , globalsIgnoreHoles = Nothing
               , globalsTimestamp
               , globalsTesting = Nothing
               , globalsSolverTimeoutMillis
               , globalsIncludePath
               , globalsSourceFilePath = Nothing
               , globalsEntryPoint
-              , globalsRewriteHoles
-              , globalsHolePosition = (,) <$> globalsHoleLine <*> globalsHoleCol
-              , globalsSynthesise
-              , globalsBenchmark
-              , globalsBenchmarkRaw
-              , globalsSubtractiveSynthesis
-              , globalsAlternateSynthesisMode
+              , globalsRewriteHoles = Nothing
+              , globalsHolePosition = (,) <$> Nothing <*> Nothing
+              , globalsSynthesise = Nothing
+              , globalsBenchmark = Nothing
+              , globalsBenchmarkRaw = Nothing
+              , globalsSubtractiveSynthesis = Nothing
+              , globalsAlternateSynthesisMode = Nothing
+              , globalsCartesianSynth = Nothing
+              , globalsHaskellSynth = Nothing
+              , globalsSynthHtml = Nothing
+              , globalsExampleLimit = Nothing
               , globalsExtensions = []
-              , globalsInteractiveDebugging
-              , globalsHaskellSynth
-              , globalsSynthHtml
-              , globalsExampleLimit
-              , globalsCartesianSynth
               , globalsDocMode = Nothing
               }
+            , grcCompileOnly
+            , grcOutput
+            , grcEmitLLVM
+            , grcEmitIR
+            , grcClean
+            , grcRun
             }
           )
       where

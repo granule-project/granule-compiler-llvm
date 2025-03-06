@@ -1,0 +1,2 @@
+main : Int
+main = (λx → λy → x * y) 3 5
