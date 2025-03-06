@@ -5,10 +5,11 @@ import Language.Granule.Syntax.Expr
 import Language.Granule.Syntax.Identifiers (Id (Id))
 import Language.Granule.Syntax.Pattern
 import Language.Granule.Syntax.Type
+import Data.Bifunctor (bimap)
 
 -- converts an AST to JSON for debugging & visualisation. WIP
 
-data JSON = Str String | Obj [(String, JSON)] | Arr [JSON]
+data JSON = Str String | Obj [(String, JSON)] | Arr [JSON] | Pair (JSON, JSON)
 
 printAST :: AST ev Type -> String
 printAST ast = toString (jAST ast)
@@ -17,6 +18,7 @@ toString :: JSON -> String
 toString (Str s) = "\"" ++ s ++ "\""
 toString (Obj pairs) = "{" ++ commas (map field pairs) ++ "}"
 toString (Arr elems) = "[" ++ commas (map toString elems) ++ "]"
+toString (Pair (left, right)) = toString (Arr [left, right])
 
 field :: (String, JSON) -> String
 field (key, value) = "\"" ++ key ++ "\":" ++ toString value
@@ -43,15 +45,15 @@ jEq (Equation s i a b ps expr) = jExpr expr
 
 jExpr :: Expr ev Type -> JSON
 jExpr (App _ ty _ fn arg) = node "App" [("type", jTy ty), ("fn", jExpr fn), ("arg", jExpr arg)]
-jExpr (Binop {}) = Str "%BINOP%"
+jExpr (Binop _ ty _ op e1 e2) = node "Binop" [("type", jTy ty), ("op", Str (show op)), ("e1", jExpr e1), ("e2", jExpr e2)]
 jExpr (LetDiamond {}) = Str "%LETDIAMOND%"
-jExpr (Val _ ty _ (Promote ty' expr)) = jExpr expr
 jExpr (Val _ ty _ val) = node "Val" [("type", jTy ty), ("val", jVal val)]
-jExpr (Case {}) = Str "%CASE%"
+jExpr (Case s ty b e ps) = node "Case" [("type", jTy ty), ("expr", jExpr e), ("cases", Arr (map (Pair . bimap jPat jExpr) ps))]
 jExpr (Hole {}) = Str "%HOLE%"
 jExpr (AppTy {}) = Str "%APP_TY%"
 jExpr (TryCatch {}) = Str "%TRY_CATCH%"
 jExpr (Unpack _ ty _ _ id e1 e2) = node "Unpack" [("type", jTy ty), ("id", jId id), ("e1", jExpr e1), ("e2", jExpr e2)]
+
 
 jVal :: Value ev Type -> JSON
 jVal (Var ty id) = node "Var" [("type", jTy ty), ("id", jId id)]
@@ -70,10 +72,10 @@ jVal (TyAbs {}) = Str "%TY_ABS%"
 
 jPat :: Pattern Type -> JSON
 jPat (PVar _ ty _ id) = node "PVar" [("type", jTy ty), ("id", jId id)]
-jPat (PWild {}) = Str "%PWILD%"
+jPat (PWild s a b) = Str "_"
 jPat (PBox _ ty _ p) = node "PBox" [("ty", jTy ty), ("pat", jPat p)]
-jPat (PInt {}) = Str "%PINT%"
-jPat (PFloat {}) = Str "%PFLOAT%"
+jPat (PInt s a b v) = Str (show v)
+jPat (PFloat s a b v) = Str (show v)
 jPat (PConstr _ ty _ id _ pats) = node "PConstr" [("type", jTy ty), ("id", jId id), ("pats", Arr (map jPat pats))]
 
 jId :: Id -> JSON
@@ -110,7 +112,6 @@ sTy (TyInfix {}) = "%TY_INFIX%"
 sTy (TySet {}) = "%TY_SET%"
 sTy (TyCase {}) = "%TY_CASE%"
 sTy (TySig {}) = "%TY_SIG%"
--- sTy (TyExists id kind ty) = "exists {" ++ sId id ++ " : " ++ sTy kind ++ "} . " ++ sTy ty
-sTy (TyExists id kind ty) = sTy ty
+sTy (TyExists id kind ty) = "exists {" ++ sId id ++ " : " ++ sTy kind ++ "} . " ++ sTy ty
 sTy (TyForall id kind ty) = "forall {" ++ sId id ++ " : " ++ sTy kind ++ "} . " ++ sTy ty
 sTy (TyName {}) = "%TY_NAME%"
