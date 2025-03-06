@@ -18,20 +18,15 @@ rewriteAST ast = ast {definitions = map rewriteDef (definitions ast)}
 
 rewriteExpr :: Expr ev Type -> Expr ev Type
 rewriteExpr (Unpack s retTy b tyVar var e1 e2) =
-  let e1' = rewriteExpr e1
+  let e1' = e1
       e1Ty = exprTy e1'
-      e2' = rewriteExpr e2
+      e2' = e2
       absTy = FunTy Nothing Nothing e1Ty retTy
    in fixTypes (App s retTy b (Val s absTy b (Abs absTy (PVar s e1Ty b var) Nothing e2')) e1')
    where
     fixTypes expr = snd $ retypeExpr emptyEnv expr
-rewriteExpr (App s a b e1 e2) = App s a b (rewriteExpr e1) (rewriteExpr e2)
-rewriteExpr (Val s a b v) = Val s a b (rewriteVal v)
 rewriteExpr exp = exp
 
-rewriteVal :: Value ev Type -> Value ev Type
-rewriteVal (Abs a p mt e) = Abs a p mt (rewriteExpr e)
-rewriteVal val = val
 
 exprTy :: Expr ev Type -> Type
 exprTy (App _ ty _ _ _) = ty
