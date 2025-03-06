@@ -23,13 +23,15 @@ newFloatArrayIDef =
             arrPtr' <- bitcast arrPtr (ptr structTy)
             -- length * double precision 8 bytes
             dataSize <- mul len (int32 8)
-            dataPtr <- call (ConstantOperand malloc) [(dataSize, [])]
+            dataSize64 <- sext dataSize i64
+            dataPtr <- call (ConstantOperand malloc) [(dataSize64, [])]
+            dataPtr' <- bitcast dataPtr (ptr IR.double)
 
             lenField <- gep arrPtr' [int32 0, int32 0]
             store lenField 0 len
 
             dataField <- gep arrPtr' [int32 0, int32 1]
-            store dataField 0 dataPtr
+            store dataField 0 dataPtr'
 
             return arrPtr
 
@@ -79,13 +81,14 @@ writeFloatArrayIDef =
             newArrPtr' <- bitcast newArrPtr (ptr structTy)
 
             dataSize <- mul len (int32 8)
-            newDataPtr <- call (ConstantOperand malloc) [(dataSize, [])]
+            dataSize64 <- sext dataSize i64
+            newDataPtr <- call (ConstantOperand malloc) [(dataSize64, [])]
             newDataPtr' <- bitcast newDataPtr (ptr IR.double)
-
-            -- copy the existing data to new array
+            dataPtr' <- bitcast dataPtr (ptr i8)
+            newDataPtr'' <- bitcast newDataPtr' (ptr i8)
             _ <- call (ConstantOperand memcpy)
-                [ (newDataPtr, [])
-                , (dataPtr, [])
+                [ (newDataPtr'', [])
+                , (dataPtr', [])
                 , (dataSize, [])
                 , (bit 0, [])
                 ]
@@ -98,7 +101,7 @@ writeFloatArrayIDef =
             store newLenField 0 len
 
             newDataField <- gep newArrPtr' [int32 0, int32 1]
-            store newDataField 0 newDataPtr
+            store newDataField 0 newDataPtr'
 
             return newArrPtr
 

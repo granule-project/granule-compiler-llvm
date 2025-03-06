@@ -23,13 +23,15 @@ newFloatArrayDef =
             arrPtr' <- bitcast arrPtr (ptr structTy)
             -- length * double precision 8 bytes
             dataSize <- mul len (int32 8)
-            dataPtr <- call (ConstantOperand malloc) [(dataSize, [])]
+            dataSize64 <- sext dataSize i64
+            dataPtr <- call (ConstantOperand malloc) [(dataSize64, [])]
+            dataPtr' <- bitcast dataPtr (ptr IR.double)
 
             lenField <- gep arrPtr' [int32 0, int32 0]
             store lenField 0 len
 
             dataField <- gep arrPtr' [int32 0, int32 1]
-            store dataField 0 dataPtr
+            store dataField 0 dataPtr'
 
             return arrPtr
 
@@ -104,12 +106,13 @@ deleteFloatArrayDef =
                 arrPtr' <- bitcast arrPtr (ptr structTy)
                 dataField <- gep arrPtr' [int32 0, int32 1]
                 dataPtr <- load dataField 0
+                dataPtr' <- bitcast dataPtr (ptr i8)
 
                 -- free the data
-                _ <- call (ConstantOperand free) [(dataPtr, [])]
+                _ <- call (ConstantOperand free) [(dataPtr', [])]
 
-                -- free the array pair
-                _ <- call (ConstantOperand free) [(arrPtr, [])]
+                arrPtr'' <- bitcast arrPtr (ptr i8)
+                _ <- call (ConstantOperand free) [(arrPtr'', [])]
 
                 -- return unit (need to check)
                 return $ ConstantOperand (C.Struct Nothing False [])
