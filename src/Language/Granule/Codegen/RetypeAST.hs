@@ -71,6 +71,7 @@ retypeVal env (Constr ty id vals) =
    in (env', Constr ty' id vals')
 retypeVal env (NumInt v) = (env, NumInt v)
 retypeVal env (NumFloat v) = (env, NumFloat v)
+retypeVal env (Promote t v) = (env, Promote t v)
 retypeVal env val = error "TODO val"
 
 retypePat :: Env -> Pattern Type -> (Env, Pattern Type)
