@@ -12,7 +12,7 @@ import Language.Granule.Codegen.Emit.LowerClosure (emitClosureMarker)
 import Language.Granule.Codegen.Emit.EmitterState
 import Language.Granule.Codegen.Emit.Names
 import Language.Granule.Codegen.Emit.Primitives (trap)
-import Language.Granule.Codegen.Emit.LLVMHelpers (stringConstant, charConstant)
+import Language.Granule.Codegen.Emit.LLVMHelpers (charConstant, allocateString)
 
 import Language.Granule.Syntax.Expr
 import Language.Granule.Syntax.Annotated (annotation)
@@ -136,8 +136,9 @@ emitValue _ (NumIntF n) = return $ IC.int32 (toInteger n)
 emitValue _ (NumFloatF n) = return $ IC.double n
 emitValue _ (CharLiteralF ch) =
     return $ IR.ConstantOperand (charConstant ch)
-emitValue _ (StringLiteralF str) =
-    return $ IR.ConstantOperand (stringConstant $ unpack str)
+-- allocate strings as we do with float arrays
+-- TODO: better handling for constants/literals
+emitValue _ (StringLiteralF str) = allocateString (unpack str)
 emitValue _ (ExtF a (Left (GlobalVar ty ident))) = do
     let ref = IR.ConstantOperand $ C.GlobalReference (ptr (llvmType ty)) (definitionNameFromId ident)
     load ref 4

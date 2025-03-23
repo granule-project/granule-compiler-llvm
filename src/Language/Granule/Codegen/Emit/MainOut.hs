@@ -60,6 +60,8 @@ fmtStrForTy x =
     case x of
         (TyCon (Id "Int" _)) -> "%d"
         (TyCon (Id "Float" _)) -> "%.6f"
+        (TyCon (Id "Char" _)) -> "'%c'"
+        (TyCon (Id "String" _)) -> "<string>"
         (TyApp (TyApp (TyCon (Id "," _)) leftTy) rightTy) ->
             "(" ++ fmtStrForTy leftTy ++ ", " ++ fmtStrForTy rightTy ++ ")"
         (TyCon (Id "()" _)) -> "()"
