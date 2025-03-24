@@ -51,6 +51,7 @@ llvmType (TyCon (MkId "()")) =
 llvmType (TyCon (MkId "Int")) = i32
 llvmType (TyCon (MkId "Float")) = double
 llvmType (TyCon (MkId "Char")) = i8
+llvmType (TyCon (MkId "String")) = ptr $ StructureType False [i32, ptr i8]
 llvmType (TyCon (MkId "Handle")) = i8
 llvmType (TyCon (MkId "Bool")) = i1
 llvmType (Box coeffect ty) = llvmType ty
