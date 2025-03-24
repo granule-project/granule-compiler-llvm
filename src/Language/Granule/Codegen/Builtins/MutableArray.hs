@@ -8,8 +8,6 @@ import qualified LLVM.AST.Constant as C
 import LLVM.IRBuilder.Constant as C
 import LLVM.IRBuilder.Instruction
 import Language.Granule.Codegen.Builtins.Shared
-import Language.Granule.Codegen.Emit.LLVMHelpers (sizeOf)
-import Language.Granule.Codegen.Emit.Primitives (malloc, free)
 
 -- newFloatArray :: Int -> FloatArray id
 newFloatArrayDef :: Builtin
@@ -19,21 +17,11 @@ newFloatArrayDef =
         args = [tyInt]
         ret = tyFloatArray
         impl [len] = do
-            arrPtr <- call (ConstantOperand malloc) [(ConstantOperand $ sizeOf structTy, [])]
-            arrPtr' <- bitcast arrPtr (ptr structTy)
-            -- length * double precision 8 bytes
-            dataSize <- mul len (int32 8)
-            dataSize64 <- sext dataSize i64
-            dataPtr <- call (ConstantOperand malloc) [(dataSize64, [])]
-            dataPtr' <- bitcast dataPtr (ptr IR.double)
-
-            lenField <- gep arrPtr' [int32 0, int32 0]
-            store lenField 0 len
-
-            dataField <- gep arrPtr' [int32 0, int32 1]
-            store dataField 0 dataPtr'
-
-            return arrPtr
+          -- length * double precision 8 bytes
+          dataSize <- mul len (int32 8)
+          dataSize64 <- sext dataSize i64
+          dataPtr <- allocate dataSize64 IR.double
+          makeArray IR.double len dataPtr
 
 -- readFloatArray :: (FloatArray id) -> Int -> (Float, FloatArray id)
 readFloatArrayDef :: Builtin
@@ -43,22 +31,10 @@ readFloatArrayDef =
         args = [tyFloatArray, tyInt]
         ret = tyPair (tyFloat, tyFloatArray)
         impl [arrPtr, idx] = do
-            -- arr -> data -> idx -> val
-
-            arrPtr' <- bitcast arrPtr (ptr structTy)
-
-            dataField <- gep arrPtr' [int32 0, int32 1]
-            dataPtr <- load dataField 0
-
-            valuePtr <- gep dataPtr [idx]
-            value <- load valuePtr 0
-
-            let pairTy = StructureType False [IR.double, ptr structTy]
-            let pair = ConstantOperand $ C.Undef pairTy
-            pair' <- insertValue pair value [0]
-            insertValue pair' arrPtr [1]
-
-
+          dataPtr <- getArrayDataPtr arrPtr
+          valuePtr <- gep dataPtr [idx]
+          value <- load valuePtr 0
+          makePair (IR.double, value) (ptr floatArrayStruct, arrPtr)
 
 -- writeFloatArray :: (FloatArray id) -> Int -> Float -> FloatArray id
 writeFloatArrayDef :: Builtin
@@ -68,14 +44,9 @@ writeFloatArrayDef =
         args = [tyFloatArray, tyInt, tyFloat]
         ret = tyFloatArray
         impl [arrPtr, idx, val] = do
-            arrPtr' <- bitcast arrPtr (ptr structTy)
-
-            dataField <- gep arrPtr' [int32 0, int32 1]
-            dataPtr <- load dataField 0
-
+            dataPtr <- getArrayDataPtr arrPtr
             valuePtr <- gep dataPtr [idx]
             store valuePtr 0 val
-
             return arrPtr
 
 -- lengthFloatArray :: (FloatArray id) -> (Int -> FloatArray id)
@@ -86,15 +57,8 @@ lengthFloatArrayDef =
         args = [tyFloatArray]
         ret = tyPair (tyInt, tyFloatArray)
         impl [arrPtr] = do
-            arrPtr' <- bitcast arrPtr (ptr structTy)
-
-            lenField <- gep arrPtr' [int32 0, int32 0]
-            len <- load lenField 0
-
-            let pairTy = StructureType False [i32, ptr structTy]
-            let pair = ConstantOperand $ C.Undef pairTy
-            pair' <- insertValue pair len [0]
-            insertValue pair' arrPtr [1]
+          len <- getArrayLen arrPtr
+          makePair (i32, len) (ptr floatArrayStruct, arrPtr)
 
 deleteFloatArrayDef :: Builtin
 deleteFloatArrayDef =
@@ -103,16 +67,9 @@ deleteFloatArrayDef =
             args = [tyFloatArray]
             ret = tyUnit
             impl [arrPtr] = do
-                arrPtr' <- bitcast arrPtr (ptr structTy)
-                dataField <- gep arrPtr' [int32 0, int32 1]
-                dataPtr <- load dataField 0
-                dataPtr' <- bitcast dataPtr (ptr i8)
-
-                -- free the data
-                _ <- call (ConstantOperand free) [(dataPtr', [])]
-
-                arrPtr'' <- bitcast arrPtr (ptr i8)
-                _ <- call (ConstantOperand free) [(arrPtr'', [])]
+                dataPtr <- getArrayDataPtr arrPtr
+                _ <- free dataPtr
+                _ <- free arrPtr
 
                 -- return unit (need to check)
                 return $ ConstantOperand (C.Struct Nothing False [])

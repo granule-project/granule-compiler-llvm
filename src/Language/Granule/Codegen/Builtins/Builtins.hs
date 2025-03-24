@@ -9,7 +9,10 @@ import Language.Granule.Syntax.Identifiers (Id, mkId)
 builtins :: [Builtin]
 builtins = [
     charToIntDef, divDef,
-    newFloatArrayIDef, readFloatArrayIDef, writeFloatArrayIDef, lengthFloatArrayIDef,
+    newFloatArrayIDef,
+    readFloatArrayIDef,
+    writeFloatArrayIDef,
+    lengthFloatArrayIDef,
     newFloatArrayDef, readFloatArrayDef, writeFloatArrayDef, lengthFloatArrayDef, deleteFloatArrayDef
     ]
 

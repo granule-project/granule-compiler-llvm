@@ -2,14 +2,10 @@
 
 module Language.Granule.Codegen.Builtins.ImmutableArray where
 
-import LLVM.AST
 import LLVM.AST.Type as IR
-import qualified LLVM.AST.Constant as C
 import LLVM.IRBuilder.Constant as C
 import LLVM.IRBuilder.Instruction
 import Language.Granule.Codegen.Builtins.Shared
-import Language.Granule.Codegen.Emit.LLVMHelpers (sizeOf)
-import Language.Granule.Codegen.Emit.Primitives (malloc, memcpy)
 
 -- newFloatArrayI :: Int -> FloatArray id
 newFloatArrayIDef :: Builtin
@@ -19,21 +15,11 @@ newFloatArrayIDef =
         args = [tyInt]
         ret = tyFloatArray
         impl [len] = do
-            arrPtr <- call (ConstantOperand malloc) [(ConstantOperand $ sizeOf structTy, [])]
-            arrPtr' <- bitcast arrPtr (ptr structTy)
             -- length * double precision 8 bytes
             dataSize <- mul len (int32 8)
             dataSize64 <- sext dataSize i64
-            dataPtr <- call (ConstantOperand malloc) [(dataSize64, [])]
-            dataPtr' <- bitcast dataPtr (ptr IR.double)
-
-            lenField <- gep arrPtr' [int32 0, int32 0]
-            store lenField 0 len
-
-            dataField <- gep arrPtr' [int32 0, int32 1]
-            store dataField 0 dataPtr'
-
-            return arrPtr
+            dataPtr <- allocate dataSize64 IR.double
+            makeArray IR.double len dataPtr
 
 -- readFloatArrayI :: (FloatArray id) -> Int -> (Float, FloatArray id)
 readFloatArrayIDef :: Builtin
@@ -43,22 +29,10 @@ readFloatArrayIDef =
         args = [tyFloatArray, tyInt]
         ret = tyPair (tyFloat, tyFloatArray)
         impl [arrPtr, idx] = do
-            -- arr -> data -> idx -> val
-
-            arrPtr' <- bitcast arrPtr (ptr structTy)
-
-            dataField <- gep arrPtr' [int32 0, int32 1]
-            dataPtr <- load dataField 0
-
+            dataPtr <- getArrayDataPtr arrPtr
             valuePtr <- gep dataPtr [idx]
             value <- load valuePtr 0
-
-            let pairTy = StructureType False [IR.double, ptr structTy]
-            let pair = ConstantOperand $ C.Undef pairTy
-            pair' <- insertValue pair value [0]
-            insertValue pair' arrPtr [1]
-
-
+            makePair (IR.double, value) (ptr floatArrayStruct, arrPtr)
 
 -- writeFloatArrayI :: (FloatArray id) -> Int -> Float -> FloatArray id
 writeFloatArrayIDef :: Builtin
@@ -68,42 +42,19 @@ writeFloatArrayIDef =
         args = [tyFloatArray, tyInt, tyFloat]
         ret = tyFloatArray
         impl [arrPtr, idx, val] = do
-            arrPtr' <- bitcast arrPtr (ptr structTy)
-
-            lenField <- gep arrPtr' [int32 0, int32 0]
-            len <- load lenField 0
-
-            dataField <- gep arrPtr' [int32 0, int32 1]
-            dataPtr <- load dataField 0
-
-            -- need to create a new array as in newFloatArrayI
-            newArrPtr <- call (ConstantOperand malloc) [(ConstantOperand $ sizeOf structTy, [])]
-            newArrPtr' <- bitcast newArrPtr (ptr structTy)
+            len <- getArrayLen arrPtr
+            dataPtr <- getArrayDataPtr arrPtr
 
             dataSize <- mul len (int32 8)
             dataSize64 <- sext dataSize i64
-            newDataPtr <- call (ConstantOperand malloc) [(dataSize64, [])]
-            newDataPtr' <- bitcast newDataPtr (ptr IR.double)
-            dataPtr' <- bitcast dataPtr (ptr i8)
-            newDataPtr'' <- bitcast newDataPtr' (ptr i8)
-            _ <- call (ConstantOperand memcpy)
-                [ (newDataPtr'', [])
-                , (dataPtr', [])
-                , (dataSize, [])
-                , (bit 0, [])
-                ]
+            newDataPtr <- allocateFloatArray len
 
-            -- write the val to new copy
-            valuePtr <- gep newDataPtr' [idx]
+            _ <- copy newDataPtr dataPtr dataSize
+
+            valuePtr <- gep newDataPtr [idx]
             store valuePtr 0 val
 
-            newLenField <- gep newArrPtr' [int32 0, int32 0]
-            store newLenField 0 len
-
-            newDataField <- gep newArrPtr' [int32 0, int32 1]
-            store newDataField 0 newDataPtr'
-
-            return newArrPtr
+            makeArray IR.double len newDataPtr
 
 -- lengthFloatArrayI :: (FloatArray id) -> (Int -> FloatArray id)
 lengthFloatArrayIDef :: Builtin
@@ -113,12 +64,5 @@ lengthFloatArrayIDef =
         args = [tyFloatArray]
         ret = tyPair (tyInt, tyFloatArray)
         impl [arrPtr] = do
-            arrPtr' <- bitcast arrPtr (ptr structTy)
-
-            lenField <- gep arrPtr' [int32 0, int32 0]
-            len <- load lenField 0
-
-            let pairTy = StructureType False [i32, ptr structTy]
-            let pair = ConstantOperand $ C.Undef pairTy
-            pair' <- insertValue pair len [0]
-            insertValue pair' arrPtr [1]
+            len <- getArrayLen arrPtr
+            makePair (i32, len) (ptr floatArrayStruct, arrPtr)
