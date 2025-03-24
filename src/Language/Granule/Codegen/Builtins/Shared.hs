@@ -99,6 +99,9 @@ tyChar = TyCon (Id "Char" "Char")
 tyUnit :: Gr.Type
 tyUnit = TyCon (Id "()" "()")
 
+tyString :: Gr.Type
+tyString = TyCon (Id "String" "String")
+
 tyPair :: (Gr.Type, Gr.Type) -> Gr.Type
 tyPair (l, r) = TyApp (TyApp (TyCon (Id "," ",")) l) r
 
