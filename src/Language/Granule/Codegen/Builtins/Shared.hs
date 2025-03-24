@@ -6,7 +6,7 @@ module Language.Granule.Codegen.Builtins.Shared where
 import LLVM.AST
 import LLVM.AST.Type as IR
 import LLVM.IRBuilder.Constant (bit, int32)
-import LLVM.IRBuilder.Instruction (bitcast, call, gep, load, store, insertValue, mul, sext)
+import LLVM.IRBuilder.Instruction (bitcast, call, gep, load, store, insertValue)
 import LLVM.IRBuilder.Module
 import LLVM.IRBuilder.Monad
 import Language.Granule.Codegen.Emit.LLVMHelpers (sizeOf)
@@ -31,12 +31,6 @@ allocate len ty = do
 allocateStruct :: (MonadIRBuilder m, MonadModuleBuilder m) => IR.Type -> m Operand
 allocateStruct ty = allocate (ConstantOperand $ sizeOf ty) ty
 
-allocateFloatArray :: (MonadIRBuilder m, MonadModuleBuilder m) => Operand -> m Operand
-allocateFloatArray len = do
-  dataSize <- mul len (int32 8)
-  dataSize64 <- sext dataSize i64
-  allocate dataSize64 IR.double
-
 copy :: (MonadIRBuilder m, MonadModuleBuilder m) => Operand -> Operand -> Operand -> m Operand
 copy dst src len = do
   dst' <- bitcast dst (ptr i8)
@@ -55,35 +49,38 @@ makePair (leftTy, leftVal) (rightTy, rightVal) = do
   pair' <- insertValue pair leftVal [0]
   insertValue pair' rightVal [1]
 
+writeStruct :: (MonadIRBuilder m, MonadModuleBuilder m) => Operand -> Int -> Operand -> m ()
+writeStruct struct index value = do
+  field <- gep struct [int32 0, int32 $ fromIntegral index]
+  store field 0 value
+
+readStruct :: (MonadIRBuilder m, MonadModuleBuilder m) => Operand -> Int -> m Operand
+readStruct struct index = do
+  field <- gep struct [int32 0, int32 $ fromIntegral index]
+  load field 0
+
 -- Arrays
 
 arrayStruct :: IR.Type -> IR.Type
 arrayStruct ty = StructureType False [i32, ptr ty]
 
-floatArrayStruct :: IR.Type
-floatArrayStruct = arrayStruct IR.double
-
-getArrayLen :: (MonadIRBuilder m, MonadModuleBuilder m) => Operand -> m Operand
-getArrayLen arrPtr = do
-  lenField <- gep arrPtr [int32 0, int32 0]
-  load lenField 0
-
-getArrayDataPtr ::  (MonadIRBuilder m, MonadModuleBuilder m) => Operand -> m Operand
-getArrayDataPtr arrPtr = do
-  dataField <- gep arrPtr [int32 0, int32 1]
-  load dataField 0
-
-makeArray :: (MonadIRBuilder m, MonadModuleBuilder m) => IR.Type -> Operand -> Operand -> m Operand
-makeArray ty len dataPtr = do
+-- creates a struct for len and array data
+makeArrayStruct :: (MonadIRBuilder m, MonadModuleBuilder m) => IR.Type -> Operand -> Operand -> m Operand
+makeArrayStruct ty len dataPtr = do
   arrPtr <- allocateStruct (arrayStruct ty)
-
-  lenField <- gep arrPtr [int32 0, int32 0]
-  store lenField 0 len
-
-  dataField <- gep arrPtr [int32 0, int32 1]
-  store dataField 0 dataPtr
-
+  writeStruct arrPtr 0 len
+  writeStruct arrPtr 1 dataPtr
   return arrPtr
+
+writeData :: (MonadIRBuilder m, MonadModuleBuilder m) => Operand -> Operand -> Operand -> m ()
+writeData dataPtr index value = do
+  valuePtr <- gep dataPtr [index]
+  store valuePtr 0 value
+
+readData :: (MonadIRBuilder m, MonadModuleBuilder m) => Operand -> Operand -> m Operand
+readData dataPtr index = do
+  valuePtr <- gep dataPtr [index]
+  load valuePtr 0
 
 -- Granule types
 
