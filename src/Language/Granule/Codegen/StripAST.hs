@@ -6,10 +6,10 @@ import Language.Granule.Syntax.Expr
 import Language.Granule.Syntax.Pattern
 import Language.Granule.Syntax.Type
 
--- Strips types which are not currently needed (or handled) by
--- the compiler, to make life easier and debugging simpler. We are
--- stripping Box, Star, Borrow and type quantifiers, but we may
--- wish to reinstate these to help with future optimisation. WIP.
+-- Temporarily strip types which are not currently needed (or handled)
+-- by the compiler, to make life easier and debugging simpler. We are
+-- stripping Box, Star, Borrow and type quantifiers, but we will wish
+-- to reinstate these later to help with optimisation.
 
 stripAST :: AST ev Type -> AST ev Type
 stripAST (AST decls defs imports hidden name) =
