@@ -47,8 +47,6 @@ library
       Language.Granule.Codegen.Emit.Names
       Language.Granule.Codegen.Emit.Primitives
       Language.Granule.Codegen.Emit.Types
-      Language.Granule.Codegen.PrintAST
-      Language.Granule.Codegen.RetypeAST
       Language.Granule.Codegen.RewriteAST
       Language.Granule.Codegen.StripAST
       Paths_granule_compiler
