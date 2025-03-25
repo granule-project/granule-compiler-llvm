@@ -16,6 +16,7 @@ import Language.Granule.Codegen.Emit.LLVMHelpers (stringConstant, charConstant)
 
 import Language.Granule.Syntax.Expr
 import Language.Granule.Syntax.Annotated (annotation)
+import Language.Granule.Syntax.Identifiers
 import Language.Granule.Syntax.Type as GRType
 
 import Control.Monad.State.Strict hiding (void)
@@ -33,6 +34,7 @@ import LLVM.AST.Constant as C
 import qualified LLVM.IRBuilder.Constant as IC
 import qualified LLVM.AST as IR
 import qualified LLVM.AST.Type as IRType
+import LLVM.Prelude (Word32)
 
 type GrType = GRType.Type
 type IrType = IRType.Type
@@ -48,20 +50,13 @@ emitExpr :: (MonadState EmitterState m, MonadModuleBuilder m, MonadIRBuilder m, 
          => Maybe Operand
          -> ExprF (Either GlobalMarker ClosureMarker) Type (EmitableExpr, m Operand) (EmitableValue, m Operand)
          -> m Operand
-emitExpr environment (AppF _ _ _ (ExprFix2 (ValF _ _ _ (ExprFix2 (ExtF _ (Left (PairConstr _ _))))), emitFunction) (_, emitArg)) =
-    do
-        pair <- emitFunction
-        leftVal <- emitArg
-        insertValue pair leftVal [0]
-
-emitExpr environment (AppF _ _ _ (ExprFix2 ((AppF _ _ _ (ExprFix2 (ValF _ _ _ (ExprFix2 (ExtF _ (Left (PairConstr _ _)))))) _)), emitFunction) (_, emitArg)) =
-    do
-        pair <- emitFunction
-        rightVal <- emitArg
-        insertValue pair rightVal [1]
-
-emitExpr environment (AppF _ _ _ (_, emitFunction) (_, emitArg)) =
-    do
+emitExpr environment (AppF _ _ _ (func, emitFunction) (_, emitArg)) =
+  case func of
+    App _ _ _ (Val _ _ _ (Constr _ (Id "," ",") _)) _ ->
+      emitPairApp emitFunction emitArg 1
+    Val _ _ _ (Constr _ (Id "," ",") _) ->
+      emitPairApp emitFunction emitArg 0
+    _ -> do
         closure <- emitFunction
         argument <- emitArg
         functionPtr <- extractValue closure [0]
@@ -171,11 +166,11 @@ emitValue _ (ConstrF ty (MkId "(,)") []) =
     emitEnvironmentInit variableInitializers environmentTypedPtr maybeParentEnv
     emitClosureConstruction ident ty environmentVoidPtr -}
 
-emitValue _ (ExtF a (Left (PairConstr leftTy rightTy))) = do
+emitValue _ ((ConstrF (FunTy _ _ leftTy (FunTy _ _ rightTy _)) (Id "," ",") _)) = do
     let pairTy = IRType.StructureType False [llvmType leftTy, llvmType rightTy]
     return $ IR.ConstantOperand $ C.Undef pairTy
 
-emitValue _ (ExtF a (Left Unit)) = do
+emitValue _ (ConstrF (TyCon (Id "()" "()")) _ _) = do
     return $ IR.ConstantOperand (C.Struct Nothing False [])
 
 emitValue _ (ConstrF {}) =
@@ -192,3 +187,9 @@ emitValue _ (TyAbsF {}) =
 
 emitValue _ (RefF {}) =
     error "RefF not supported"
+
+emitPairApp :: (MonadIRBuilder m, MonadModuleBuilder m) => m Operand -> m Operand -> Word32 -> m Operand
+emitPairApp emitFunction emitArg idx = do
+  pair <- emitFunction
+  val <- emitArg
+  insertValue pair val [idx]
