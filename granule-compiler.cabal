@@ -44,6 +44,7 @@ library
       Language.Granule.Codegen.Emit.Names
       Language.Granule.Codegen.Emit.Primitives
       Language.Granule.Codegen.Emit.Types
+      Language.Granule.Codegen.Monomorphise
       Paths_granule_compiler
   hs-source-dirs:
       src

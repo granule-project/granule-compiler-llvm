@@ -1,4 +1,3 @@
-{-# LANGUAGE ImplicitParams #-}
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 module Language.Granule.Codegen.Compile where
 
@@ -9,13 +8,13 @@ import Language.Granule.Codegen.TopsortDefinitions
 import Language.Granule.Codegen.ConvertClosures
 import Language.Granule.Codegen.Emit.EmitLLVM
 import Language.Granule.Codegen.MarkGlobals
+import Language.Granule.Codegen.Monomorphise
 import qualified LLVM.AST as IR
---import Language.Granule.Syntax.Pretty
---import Debug.Trace
 
 compile :: String -> AST () Type -> Either String IR.Module
 compile moduleName typedAST =
-  let normalised     = {-trace (show typedAST)-} (normaliseDefinitions typedAST)
+  let monomorphised  = monomorphiseAST typedAST
+      normalised     = normaliseDefinitions monomorphised
       markedGlobals  = markGlobals normalised
       (Ok topsorted) = topologicallySortDefinitions markedGlobals
       closureFree    = convertClosures topsorted
