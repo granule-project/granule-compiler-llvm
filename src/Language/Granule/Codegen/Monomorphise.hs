@@ -2,7 +2,6 @@ module Language.Granule.Codegen.Monomorphise (monomorphiseAST) where
 
 import Control.Monad.Identity (runIdentity)
 import Data.Bifunctor (Bifunctor (bimap), second)
-import Data.Char (isAlphaNum, toLower)
 import qualified Data.Map as Map
 import Language.Granule.Syntax.Annotated (annotation)
 import Language.Granule.Syntax.Def
@@ -35,19 +34,12 @@ isPolymorphic def =
     Forall _ ((_, Type 0) : _) _ _ -> True
     _ -> False
 
--- e.g. id : a -> a when a is int becomes __id_int
+-- e.g. id -> __id_3856
 makeMonoId :: Id -> [Type] -> Id
-makeMonoId (Id internal source) types =
-  let typeSuffix = concatMap (\ty -> "_" ++ typeToSafeString ty) types
-      name = "__" ++ internal ++ typeSuffix
+makeMonoId (Id id _) types =
+  let hash = abs $ sum $ map fromEnum (show types)
+      name = "__" ++ id ++ "_" ++ show hash
    in Id name name
-  where
-    -- TODO: needs work so we don't make extralong names
-    typeToSafeString (TyCon (Id _ id)) = map sanitiseChar id
-    typeToSafeString t = map sanitiseChar (show t)
-    sanitiseChar c
-      | isAlphaNum c = toLower c
-      | otherwise = '_'
 
 -- create map of polymorphic function id to its ty vars
 getPolymorphicFunctions :: AST ev Type -> PolyFuncs
