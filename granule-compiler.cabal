@@ -59,6 +59,7 @@ library
       base >=4.10 && <5
     , containers
     , granule-frontend
+    , hashable
     , llvm-hs ==12.*
     , llvm-hs-pure ==12.*
     , mtl
@@ -88,6 +89,7 @@ executable grlc
     , gitrev
     , granule-compiler
     , granule-frontend
+    , hashable
     , llvm-hs ==12.*
     , llvm-hs-pure ==12.*
     , optparse-applicative
@@ -120,6 +122,7 @@ test-suite compiler-spec
     , filemanip
     , granule-compiler
     , granule-frontend
+    , hashable
     , hspec
     , mtl
     , process
@@ -146,6 +149,7 @@ test-suite golden
     , filepath
     , granule-compiler
     , granule-frontend
+    , hashable
     , llvm-hs ==12.*
     , llvm-hs-pure ==12.*
     , process

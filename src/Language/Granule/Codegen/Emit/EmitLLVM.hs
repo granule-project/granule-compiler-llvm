@@ -123,7 +123,9 @@ emitFunction _ _ _ _ _ = error "cannot emit function with non function type"
 paramName :: Pattern GrType -> ParameterName
 paramName (PConstr _ _ _ (Id "," _) _ _) = parameterNameFromId $ mkId "pair"
 paramName (PConstr _ _ _ (Id "()" _) _ _) = parameterNameFromId $ mkId "unit"
-paramName pat = parameterNameFromId $ head $ boundVars pat
+paramName pat = case boundVars pat of
+  [] -> parameterNameFromId $ mkId "wildcard"
+  (var : _) -> parameterNameFromId var
 
 emitArg :: (MonadState EmitterState m, MonadModuleBuilder m, MonadIRBuilder m)
           => Pattern GrType

@@ -2,7 +2,10 @@ module Language.Granule.Codegen.Monomorphise (monomorphiseAST) where
 
 import Control.Monad.Identity (runIdentity)
 import Data.Bifunctor (Bifunctor (bimap), second)
+import Data.Foldable (find)
+import Data.Hashable (hash)
 import qualified Data.Map as Map
+import Data.Maybe (fromMaybe)
 import Language.Granule.Syntax.Annotated (annotation)
 import Language.Granule.Syntax.Def
 import Language.Granule.Syntax.Expr hiding (subst)
@@ -16,29 +19,31 @@ type PolyInstances = Map.Map Id [(Id, [(Id, Type)])]
 -- polymorphic id -> [ty var]
 type PolyFuncs = Map.Map Id [Id]
 
--- TODO: support tyvar in any argument position and support more than 1 tyvar per function
--- currently only supports single tyvars in first argument
+-- TODO:
+-- ensure fixed point
+-- more tests
 
 -- create monomorphic versions for each required instance of polymorphic function and rewrite ast
 monomorphiseAST :: AST ev Type -> AST ev Type
 monomorphiseAST ast =
   let polymorphicFuncs = getPolymorphicFunctions ast
       env = collectInstances ast polymorphicFuncs
-      monoDefs = makeMonoDefs ast env
-      rewritten = rewriteCalls ast env
-   in rewritten {definitions = filter (not . isPolymorphic) (definitions rewritten) ++ monoDefs}
+   in if null env
+        then ast {definitions = filter (not . isPolymorphic) (definitions ast)}
+        else
+          let monoDefs = makeMonoDefs ast env
+              rewritten = rewriteCalls ast env
+           in monomorphiseAST (rewritten {definitions = definitions rewritten ++ monoDefs})
 
 isPolymorphic :: Def ev Type -> Bool
 isPolymorphic def =
   case defTypeScheme def of
-    Forall _ ((_, Type 0) : _) _ _ -> True
-    _ -> False
+    Forall _ bindings _ _ -> any (\(_, t) -> t == Type 0) bindings
 
 -- e.g. id -> __id_3856
-makeMonoId :: Id -> [Type] -> Id
-makeMonoId (Id id _) types =
-  let hash = abs $ sum $ map fromEnum (show types)
-      name = "__" ++ id ++ "_" ++ show hash
+makeMonoId :: Id -> Type -> Id
+makeMonoId (Id id _) ty =
+  let name = "__" ++ id ++ "_" ++ show (abs $ hash $ show ty)
    in Id name name
 
 -- create map of polymorphic function id to its ty vars
@@ -68,7 +73,7 @@ collectInstances ast fns =
     collectExpr (App _ _ _ e1 e2) =
       let inst = case getPolymorphicCall fns e1 e2 of
             Just (id, tyVarSubsts) ->
-              Map.singleton id [(makeMonoId id (map snd tyVarSubsts), tyVarSubsts)]
+              Map.singleton id [(makeMonoId id (annotation e2), tyVarSubsts)]
             Nothing -> Map.empty
        in Map.unionWith (++) (collectExprs [e1, e2]) inst
     collectExpr (Val _ _ _ val) = collectVal val
@@ -97,16 +102,44 @@ collectInstances ast fns =
 
 -- identify polymorphic function calls and get substitution info
 getPolymorphicCall :: PolyFuncs -> Expr ev Type -> Expr ev Type -> Maybe (Id, [(Id, Type)])
-getPolymorphicCall fns (Val _ _ _ (Var _ id)) arg =
+getPolymorphicCall fns (Val _ ty1 _ (Var ty2 id)) _ =
   case Map.lookup id fns of
-    Just tyVars ->
-      let argType = annotation arg
-          substitutions = case argType of
-            TyVar _ -> []
-            _ -> [(head tyVars, argType)]
-       in Just (id, substitutions)
+    Just ids ->
+      let substs = matchTyVars ids ty2 ty1
+       in if null substs
+            then Nothing
+            else Just (id, substs)
     Nothing -> Nothing
 getPolymorphicCall _ _ _ = Nothing
+
+matchTyVars :: [Id] -> Type -> Type -> [(Id, Type)]
+matchTyVars actualIds t1 t2 =
+  fixIds (match t1 t2) actualIds
+  where
+    fixIds subs vars = [(findVar id vars, typ) | (id, typ) <- subs]
+    findVar id vars = fromMaybe id $ find (matchId id) vars
+    -- e.g. (Id a.1 a.1) == (Id a a`0)
+    matchId id var = takeWhile (/= '.') (internalName id) == sourceName var
+
+    match t1 t2 = case (t1, t2) of
+      (TyVar _, TyVar _) -> []
+      (TyVar id, ty) -> [(id, ty)]
+      (FunTy _ _ a b, FunTy _ _ a' b') -> match2 a a' b b'
+      (TyApp a b, TyApp a' b') -> match2 a a' b b'
+      (Box _ a, Box _ a') -> match a a'
+      (Diamond _ a, Diamond _ a') -> match a a'
+      (Star _ a, Star _ a') -> match a a'
+      (Borrow _ a, Borrow _ a') -> match a a'
+      (TySig a _, TySig a' _) -> match a a'
+      (TyInfix _ a b, TyInfix _ a' b') -> match2 a a' b b'
+      (TyExists _ _ a, TyExists _ _ a') -> match a a'
+      (TyForall _ _ a, TyForall _ _ a') -> match a a'
+      (TyCase a as, TyCase a' as') -> match a a' ++ concat [match2 a a' b b' | ((a, b), (a', b')) <- zip as as']
+      (TySet _ ts, TySet _ ts') -> concat (zipWith match ts ts')
+      (TyGrade (Just t) _, TyGrade (Just t') _) -> match t t'
+      _ -> []
+
+    match2 a a' b b' = match a a' ++ match b b'
 
 -- create monomorphised definitions for all polymorphic function insts
 makeMonoDefs :: AST ev Type -> PolyInstances -> [Def ev Type]
@@ -195,7 +228,7 @@ rewriteCalls ast env = ast {definitions = map rewriteDef (definitions ast)}
                 then
                   let argTy = annotation rewrittenArg
                       ty' = FunTy Nothing Nothing argTy ty
-                   in Val s' ty' r' (Var ty' (makeMonoId id [argTy]))
+                   in Val s' ty' r' (Var ty' (makeMonoId id argTy))
                 else rewrittenF
             _ -> rewrittenF
        in App s ty r newF rewrittenArg
