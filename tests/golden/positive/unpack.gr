@@ -1,0 +1,9 @@
+main : (Float, Float)
+main =
+    unpack<id, arr> = newFloatArray 1 in
+    let arr' = writeFloatArray arr 0 42.0 in
+    let arr'' = writeFloatArray arr' 1 100.0 in
+    let (x, arr''') = readFloatArray arr'' 0 in
+    let (y, arr'''') = readFloatArray arr''' 1 in
+    let () = deleteFloatArray arr'''' in
+    (x, y)

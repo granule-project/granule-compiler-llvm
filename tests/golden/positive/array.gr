@@ -1,0 +1,10 @@
+write2 : forall {id : Name} . FloatArray id -> (Float, Float) -> FloatArray id
+write2 arr (x, y) = writeFloatArrayI (writeFloatArrayI arr 0 x) 1 y
+
+main : forall {id : Name} . (Float, (Float, (Int, FloatArray id)))
+main =
+        let arr     = write2 (newFloatArrayI 2) (40.0, 100.0);
+        (x, arr')   = readFloatArrayI arr 0;
+        (y, arr'')  = readFloatArrayI arr' 1;
+        (l, arr''') = lengthFloatArrayI arr'' in
+        (x, (y, (l, arr''')))

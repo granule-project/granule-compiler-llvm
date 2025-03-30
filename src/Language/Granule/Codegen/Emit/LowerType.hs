@@ -44,6 +44,8 @@ llvmType (FunTy _ _ from to) =
     llvmTypeForClosure $ llvmTypeForFunction (llvmType from) (llvmType to)
 llvmType (TyApp (TyApp (TyCon (MkId ",")) left) right) =
     StructureType False [llvmType left, llvmType right]
+llvmType (TyApp (TyCon (MkId "FloatArray")) _) =
+    ptr $ StructureType False [i32, ptr double]
 llvmType (TyCon (MkId "()")) =
     StructureType False []
 llvmType (TyCon (MkId "Int")) = i32
@@ -52,6 +54,8 @@ llvmType (TyCon (MkId "Char")) = i8
 llvmType (TyCon (MkId "Handle")) = i8
 llvmType (TyCon (MkId "Bool")) = i1
 llvmType (Box coeffect ty) = llvmType ty
+llvmType (TyExists _ _ ty) = llvmType ty
+llvmType (Borrow (TyCon (MkId "Star")) ty) = llvmType ty
 llvmType ty = error $ "Cannot lower the type " ++ show ty
 
 llvmTopLevelType :: GrType -> IrType
