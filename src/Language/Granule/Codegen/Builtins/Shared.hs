@@ -104,3 +104,6 @@ tyPair (l, r) = TyApp (TyApp (TyCon (Id "," ",")) l) r
 
 tyFloatArray :: Gr.Type
 tyFloatArray = TyApp (TyCon (Id "FloatArray" "FloatArray")) (TyVar (Id "id" "id"))
+
+tyFloatRef :: Gr.Type
+tyFloatRef = TyApp (TyCon (Id "Ref" "Ref")) (TyVar (Id "id" "id"))

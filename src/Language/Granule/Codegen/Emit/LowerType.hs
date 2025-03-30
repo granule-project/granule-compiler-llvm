@@ -48,6 +48,14 @@ llvmType (TyApp (TyCon (MkId "FloatArray")) _) =
     ptr $ StructureType False [i32, ptr double]
 llvmType (TyCon (MkId "()")) =
     StructureType False []
+-- temp, should be no tyvars after rewriting
+llvmType (TyVar _) = double
+-- temp, only float ref
+llvmType (TyApp (TyCon (MkId "Ref")) _) =
+  ptr $ StructureType False [double]
+-- temp, only float ref
+llvmType (TyApp (TyApp (TyCon (MkId "Ref")) _) _) =
+  ptr $ StructureType False [double]
 llvmType (TyCon (MkId "Int")) = i32
 llvmType (TyCon (MkId "Float")) = double
 llvmType (TyCon (MkId "Char")) = i8
