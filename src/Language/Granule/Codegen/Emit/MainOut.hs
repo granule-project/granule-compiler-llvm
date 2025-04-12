@@ -62,5 +62,7 @@ fmtStrForTy x =
         (TyCon (Id "Float" _)) -> "%.6f"
         (TyApp (TyApp (TyCon (Id "," _)) leftTy) rightTy) ->
             "(" ++ fmtStrForTy leftTy ++ ", " ++ fmtStrForTy rightTy ++ ")"
+        (TyApp (TyCon (Id "FloatArray" _)) _) -> "<array>"
         (TyCon (Id "()" _)) -> "()"
-        _ -> error "Unsupported"
+        (TyExists _ _ (Borrow _ ty)) -> "*" ++ fmtStrForTy ty
+        _ -> error ("Unsupported Main type: " ++ show x)

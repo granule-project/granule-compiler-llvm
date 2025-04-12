@@ -1,0 +1,10 @@
+deleteFloatArrayI : forall {id : Name} . (FloatArray id) [] -> ()
+deleteFloatArrayI [a] = ()
+
+main : Float
+main =
+    let [arr] = [(newFloatArrayI 1)] in
+    let [arr'] = [writeFloatArrayI arr 0 42.0] in
+    let [(x, arr'')] = [readFloatArrayI arr' 0] in
+    let () = deleteFloatArrayI [arr''] in
+    x

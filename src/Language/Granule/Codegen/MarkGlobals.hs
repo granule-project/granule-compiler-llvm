@@ -5,7 +5,7 @@ import Language.Granule.Syntax.Type
 import Language.Granule.Syntax.Identifiers
 import Language.Granule.Syntax.Pretty
 import Data.Bifunctor.Foldable
-import Language.Granule.Codegen.Builtins (builtinIds)
+import Language.Granule.Codegen.Builtins.Builtins (builtinIds)
 
 data GlobalMarker =
     GlobalVar Type Id

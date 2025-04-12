@@ -11,12 +11,12 @@ import LLVM.IRBuilder.Constant (int32)
 import LLVM.IRBuilder.Instruction
 import LLVM.IRBuilder.Module
 import LLVM.IRBuilder.Monad (IRBuilderT)
-import Language.Granule.Codegen.Builtins
+import Language.Granule.Codegen.Builtins.Builtins
+import Language.Granule.Codegen.Builtins.Shared
 import Language.Granule.Codegen.Emit.LLVMHelpers
 import Language.Granule.Codegen.Emit.LowerClosure (mallocEnvironment)
 import Language.Granule.Codegen.Emit.LowerType (llvmType, llvmTypeForClosure, llvmTypeForFunction)
 
--- TODO: only emit builtins as required
 emitBuiltins :: (MonadModuleBuilder m) => m [Operand]
 emitBuiltins = mapM emitBuiltin builtins
 

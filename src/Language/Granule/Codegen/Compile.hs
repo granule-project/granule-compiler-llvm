@@ -9,11 +9,14 @@ import Language.Granule.Codegen.ConvertClosures
 import Language.Granule.Codegen.Emit.EmitLLVM
 import Language.Granule.Codegen.MarkGlobals
 import Language.Granule.Codegen.Monomorphise
+import Language.Granule.Codegen.RewriteAST
+
 import qualified LLVM.AST as IR
 
 compile :: String -> AST () Type -> Either String IR.Module
 compile moduleName typedAST =
-  let monomorphised  = monomorphiseAST typedAST
+  let rewritten      = rewriteAST typedAST
+      monomorphised  = monomorphiseAST rewritten
       normalised     = normaliseDefinitions monomorphised
       markedGlobals  = markGlobals normalised
       (Ok topsorted) = topologicallySortDefinitions markedGlobals
