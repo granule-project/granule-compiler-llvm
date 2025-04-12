@@ -49,6 +49,7 @@ library
       Language.Granule.Codegen.Emit.Types
       Language.Granule.Codegen.Monomorphise
       Language.Granule.Codegen.RewriteAST
+      Language.Granule.Codegen.SubstituteTypes
       Paths_granule_compiler
   hs-source-dirs:
       src
