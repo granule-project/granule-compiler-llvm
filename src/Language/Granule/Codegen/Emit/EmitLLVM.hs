@@ -33,6 +33,7 @@ import Language.Granule.Syntax.Type hiding (Type)
 
 import Data.String (fromString)
 import qualified Data.Map.Strict as Map
+import qualified Data.Set as Set
 
 import Control.Monad.Fix
 import Control.Monad.State.Strict hiding (void)
@@ -40,20 +41,21 @@ import LLVM.IRBuilder (int32)
 
 emitLLVM :: String -> ClosureFreeAST -> Either String IR.Module
 emitLLVM moduleName (ClosureFreeAST dataDecls functionDefs valueDefs) =
-    let buildModule name m = evalState (buildModuleT name m) (EmitterState { localSymbols = Map.empty })
+    let buildModule name m = evalState (buildModuleT name m) (EmitterState { localSymbols = Map.empty, builtins = Set.empty })
     in Right $ buildModule (fromString moduleName) $ do
         _ <- extern (mkName "malloc") [i64] (ptr i8)
         _ <- extern (mkName "abort") [] void
         _ <- externVarArgs (mkName "printf") [ptr i8] i32
         _ <- extern (mkName "llvm.memcpy.p0.p0.i32") [ptr i8, ptr i8, i32, i1] void
         _ <- extern (mkName "free") [ptr i8] void
-        _ <- emitBuiltins
         let mainTy = findMainReturnType valueDefs
         _ <- emitMainOut mainTy
         mapM_ emitDataDecl dataDecls
         mapM_ emitEnvironmentType functionDefs
         mapM_ emitFunctionDef functionDefs
         valueInitPairs <- mapM emitValueDef valueDefs
+        builtins <- usedBuiltins
+        _ <- emitBuiltins builtins
         emitGlobalInitializer valueInitPairs mainTy
 
 emitGlobalInitializer :: (MonadModuleBuilder m) => [(Operand, Operand)] -> GrType -> m Operand

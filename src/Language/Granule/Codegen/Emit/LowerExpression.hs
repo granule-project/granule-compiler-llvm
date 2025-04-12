@@ -5,7 +5,7 @@ module Language.Granule.Codegen.Emit.LowerExpression where
 import Language.Granule.Codegen.ClosureFreeDef (ClosureMarker)
 import Language.Granule.Codegen.MarkGlobals (GlobalMarker, GlobalMarker(..))
 import Language.Granule.Codegen.Emit.LowerOperator
-import Language.Granule.Codegen.Emit.LowerType (llvmType)
+import Language.Granule.Codegen.Emit.LowerType (llvmType, llvmTopLevelType)
 import Language.Granule.Codegen.Emit.EmitableDef
 import Language.Granule.Codegen.Emit.LowerPatterns (emitCaseArm)
 import Language.Granule.Codegen.Emit.LowerClosure (emitClosureMarker)
@@ -29,7 +29,7 @@ import LLVM.IRBuilder.Monad
 import LLVM.IRBuilder.Instruction
 
 import LLVM.AST (Operand)
-import LLVM.AST.Type (ptr)
+import LLVM.AST.Type (ptr, i8)
 import LLVM.AST.Constant as C
 import qualified LLVM.IRBuilder.Constant as IC
 import qualified LLVM.AST as IR
@@ -137,7 +137,10 @@ emitValue _ (ExtF a (Left (GlobalVar ty ident))) = do
     let ref = IR.ConstantOperand $ C.GlobalReference (ptr (llvmType ty)) (definitionNameFromId ident)
     load ref 4
 emitValue _ (ExtF a (Left (BuiltinVar ty ident))) = do
-    error "TODO?"
+    useBuiltin ident
+    let functionPtr = IR.ConstantOperand $ C.GlobalReference (ptr $ llvmTopLevelType ty) (IR.mkName $ "fn." ++ sourceName ident)
+    closure <- insertValue (IR.ConstantOperand $ C.Undef (llvmType ty)) functionPtr [0]
+    insertValue closure (IR.ConstantOperand $ C.Null (ptr i8)) [1]
 emitValue environment (ExtF ty (Right cm)) =
     emitClosureMarker ty environment cm
 {- TODO: Support tagged unions, also affects Case.

@@ -8,8 +8,10 @@ import LLVM.AST (Operand)
 
 import Data.Map (Map, insertWith)
 import qualified Data.Map as Map
+import Data.Set (Set)
+import qualified Data.Set as Set
 
-data EmitterState = EmitterState { localSymbols :: Map Id Operand }
+data EmitterState = EmitterState { localSymbols :: Map Id Operand, builtins :: Set Id }
 
 addLocal :: (MonadState EmitterState m)
          => Id
@@ -40,3 +42,9 @@ local name =
         case local of
             Just op -> return op
             Nothing -> error $ internalName name ++ "not registered as a local, missing call to addLocal?\n"
+
+useBuiltin :: (MonadState EmitterState m) => Id -> m ()
+useBuiltin id = modify $ \s -> s { builtins = Set.insert id (builtins s) }
+
+usedBuiltins :: (MonadState EmitterState m) => m [Id]
+usedBuiltins = Set.toList <$> gets builtins

@@ -16,9 +16,10 @@ import Language.Granule.Codegen.Builtins.Shared
 import Language.Granule.Codegen.Emit.LLVMHelpers
 import Language.Granule.Codegen.Emit.LowerClosure (mallocEnvironment)
 import Language.Granule.Codegen.Emit.LowerType (llvmType, llvmTypeForClosure, llvmTypeForFunction)
+import Language.Granule.Syntax.Identifiers
 
-emitBuiltins :: (MonadModuleBuilder m) => m [Operand]
-emitBuiltins = mapM emitBuiltin builtins
+emitBuiltins :: (MonadModuleBuilder m) => [Id] -> m [Operand]
+emitBuiltins ids = mapM emitBuiltin (filter (\b -> any (\(Id s _) -> builtinId b == s) ids) builtins)
 
 emitBuiltin :: (MonadModuleBuilder m) => Builtin -> m Operand
 emitBuiltin builtin =
