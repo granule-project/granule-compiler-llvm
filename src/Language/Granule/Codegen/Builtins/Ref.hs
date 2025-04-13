@@ -34,7 +34,7 @@ readRefDef =
   where
     impl [refTy] [refPtr] = do
       val <- readStruct refPtr 0
-      makePair (refInnerTy refTy, val) (ptr (llvmType refTy), refPtr)
+      makePair (refInnerTy refTy, val) (llvmType refTy, refPtr)
 
 refStruct :: Gr.Type -> IR.Type
 refStruct ty = StructureType False [llvmType ty]
