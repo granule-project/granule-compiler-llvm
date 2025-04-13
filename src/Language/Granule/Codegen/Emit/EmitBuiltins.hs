@@ -6,7 +6,7 @@ import Control.Monad (forM)
 import LLVM.AST (Operand)
 import qualified LLVM.AST as IR
 import qualified LLVM.AST.Constant as C
-import LLVM.AST.Type hiding (Type)
+import LLVM.AST.Type hiding (resultType, Type)
 import LLVM.IRBuilder.Constant (int32)
 import LLVM.IRBuilder.Instruction
 import LLVM.IRBuilder.Module
@@ -17,9 +17,24 @@ import Language.Granule.Codegen.Emit.LLVMHelpers
 import Language.Granule.Codegen.Emit.LowerClosure (mallocEnvironment)
 import Language.Granule.Codegen.Emit.LowerType (llvmType, llvmTypeForClosure, llvmTypeForFunction)
 import Language.Granule.Syntax.Identifiers
+import Language.Granule.Syntax.Type
 
-emitBuiltins :: (MonadModuleBuilder m) => [Id] -> m [Operand]
-emitBuiltins ids = mapM emitBuiltin (filter (\b -> any (\(Id s _) -> builtinId b == s) ids) builtins)
+
+emitBuiltins :: (MonadModuleBuilder m) => [(Id, Type)] -> m ()
+emitBuiltins uses = do
+  let instances = foldMap (\(id, ty) -> [(b, id, ty) | b <- builtins, builtinId b == sourceName id]) uses
+  mapM_ emitInstance instances
+  where
+    emitInstance (builtin, Id s i, ty)
+      | s == i = emitBuiltin builtin
+      | otherwise = -- we change the internal name for specialisations
+          emitBuiltin
+            ( builtin
+                { builtinId = i,
+                  builtinArgTys = parameterTypes ty,
+                  builtinRetTy = resultType ty
+                }
+            )
 
 emitBuiltin :: (MonadModuleBuilder m) => Builtin -> m Operand
 emitBuiltin builtin =

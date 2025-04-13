@@ -137,8 +137,8 @@ emitValue _ (ExtF a (Left (GlobalVar ty ident))) = do
     let ref = IR.ConstantOperand $ C.GlobalReference (ptr (llvmType ty)) (definitionNameFromId ident)
     load ref 4
 emitValue _ (ExtF a (Left (BuiltinVar ty ident))) = do
-    useBuiltin ident
-    let functionPtr = IR.ConstantOperand $ C.GlobalReference (ptr $ llvmTopLevelType ty) (IR.mkName $ "fn." ++ sourceName ident)
+    useBuiltin ident ty
+    let functionPtr = IR.ConstantOperand $ C.GlobalReference (ptr $ llvmTopLevelType ty) (IR.mkName $ "fn." ++ internalName ident)
     closure <- insertValue (IR.ConstantOperand $ C.Undef (llvmType ty)) functionPtr [0]
     insertValue closure (IR.ConstantOperand $ C.Null (ptr i8)) [1]
 emitValue environment (ExtF ty (Right cm)) =

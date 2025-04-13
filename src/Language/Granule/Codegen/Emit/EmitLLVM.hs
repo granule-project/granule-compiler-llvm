@@ -33,7 +33,6 @@ import Language.Granule.Syntax.Type hiding (Type)
 
 import Data.String (fromString)
 import qualified Data.Map.Strict as Map
-import qualified Data.Set as Set
 
 import Control.Monad.Fix
 import Control.Monad.State.Strict hiding (void)
@@ -41,7 +40,7 @@ import LLVM.IRBuilder (int32)
 
 emitLLVM :: String -> ClosureFreeAST -> Either String IR.Module
 emitLLVM moduleName (ClosureFreeAST dataDecls functionDefs valueDefs) =
-    let buildModule name m = evalState (buildModuleT name m) (EmitterState { localSymbols = Map.empty, builtins = Set.empty })
+    let buildModule name m = evalState (buildModuleT name m) (EmitterState { localSymbols = Map.empty, builtins = Map.empty })
     in Right $ buildModule (fromString moduleName) $ do
         _ <- extern (mkName "malloc") [i64] (ptr i8)
         _ <- extern (mkName "abort") [] void

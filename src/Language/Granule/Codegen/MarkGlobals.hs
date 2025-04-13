@@ -35,7 +35,8 @@ markGlobalsInExpr :: [Id] -> Expr () Type -> Expr GlobalMarker Type
 markGlobalsInExpr globals =
     bicata fixMapExtExpr markInValue
     where markInValue (VarF ty ident)
-              | ident `elem` builtinIds = Ext ty (BuiltinVar ty ident)
+              | any (\id -> sourceName ident == sourceName id) builtinIds =
+                  Ext ty (BuiltinVar ty ident)
               | ident `elem` globals = Ext ty (GlobalVar ty ident)
               | otherwise = Var ty ident
           markInValue other =

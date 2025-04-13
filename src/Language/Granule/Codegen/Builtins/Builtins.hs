@@ -17,8 +17,12 @@ builtins =
     readFloatArrayDef,
     writeFloatArrayDef,
     lengthFloatArrayDef,
-    deleteFloatArrayDef
+    deleteFloatArrayDef,
+    useDef
   ]
 
 builtinIds :: [Id]
 builtinIds = map (mkId . builtinId) builtins
+
+polyBuiltinIds :: [Id]
+polyBuiltinIds = map (mkId . builtinId) [useDef]

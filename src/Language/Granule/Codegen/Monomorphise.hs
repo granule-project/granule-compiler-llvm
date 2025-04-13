@@ -4,6 +4,7 @@ import Control.Monad.Identity (runIdentity)
 import Data.Bifunctor (Bifunctor (bimap), second)
 import Data.Hashable (hash)
 import qualified Data.Map as Map
+import Language.Granule.Codegen.Builtins.Builtins (polyBuiltinIds)
 import Language.Granule.Syntax.Annotated (annotation)
 import Language.Granule.Syntax.Def
 import Language.Granule.Syntax.Expr hiding (subst)
@@ -27,7 +28,9 @@ monomorphiseAST ast =
   let polymorphicFuncs = getPolymorphicFunctions ast
       env = collectInstances ast polymorphicFuncs
    in if null env
-        then ast {definitions = filter (not . isPolymorphic) (definitions ast)}
+        then -- we still need to rewrite builtins
+          let rewritten = rewriteCalls ast Map.empty
+           in rewritten {definitions = filter (not . isPolymorphic) (definitions rewritten)}
         else
           let monoDefs = makeMonoDefs ast env
               rewritten = rewriteCalls ast env
@@ -41,8 +44,8 @@ isPolymorphic def =
 -- e.g. id -> __id_3856
 makeMonoId :: Id -> Type -> Id
 makeMonoId (Id id _) ty =
-  let name = "__" ++ id ++ "_" ++ show (abs $ hash $ show ty)
-   in Id name name
+  let monoId = "__" ++ id ++ "_" ++ show (abs $ hash $ show ty)
+   in Id id monoId
 
 -- create map of polymorphic function id to its ty vars
 getPolymorphicFunctions :: AST ev Type -> PolyFuncs
@@ -213,7 +216,8 @@ rewriteCalls ast env = ast {definitions = map rewriteDef (definitions ast)}
           newF = case rewrittenF of
             Val s' t' r' (Var vt id) ->
               -- Only rewrite if this is a polymorphic function in our map
-              if Map.member id env
+              -- or polymorphic builtin
+              if Map.member id env || id `elem` polyBuiltinIds
                 then
                   let argTy = annotation rewrittenArg
                       ty' = FunTy Nothing Nothing argTy ty

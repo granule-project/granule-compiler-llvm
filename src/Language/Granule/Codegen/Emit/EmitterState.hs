@@ -2,16 +2,15 @@
 module Language.Granule.Codegen.Emit.EmitterState where
 
 import Language.Granule.Syntax.Identifiers (Id, internalName)
+import Language.Granule.Syntax.Type
 import Control.Monad.State.Strict hiding (void)
 
 import LLVM.AST (Operand)
 
 import Data.Map (Map, insertWith)
 import qualified Data.Map as Map
-import Data.Set (Set)
-import qualified Data.Set as Set
 
-data EmitterState = EmitterState { localSymbols :: Map Id Operand, builtins :: Set Id }
+data EmitterState = EmitterState { localSymbols :: Map Id Operand, builtins :: Map Id Type }
 
 addLocal :: (MonadState EmitterState m)
          => Id
@@ -43,8 +42,8 @@ local name =
             Just op -> return op
             Nothing -> error $ internalName name ++ "not registered as a local, missing call to addLocal?\n"
 
-useBuiltin :: (MonadState EmitterState m) => Id -> m ()
-useBuiltin id = modify $ \s -> s { builtins = Set.insert id (builtins s) }
+useBuiltin :: (MonadState EmitterState m) => Id -> Type -> m ()
+useBuiltin id ty = modify $ \s -> s { builtins = Map.insert id ty (builtins s) }
 
-usedBuiltins :: (MonadState EmitterState m) => m [Id]
-usedBuiltins = Set.toList <$> gets builtins
+usedBuiltins :: (MonadState EmitterState m) => m [(Id, Type)]
+usedBuiltins = Map.toList <$> gets builtins
