@@ -1,15 +1,8 @@
 module Language.Granule.Codegen.Emit.LowerType where
 import Language.Granule.Codegen.Emit.MkId
-import Language.Granule.Codegen.ClosureFreeDef
 import Language.Granule.Syntax.Type
 import Language.Granule.Codegen.Emit.Types
 import LLVM.AST.Type
-
-llvmTypeForEnvironment :: ClosureEnvironmentType -> IrType
-llvmTypeForEnvironment (TyClosureEnvironment captureTypes) =
-    StructureType {
-        isPacked = False,
-        elementTypes = map llvmType captureTypes }
 
 llvmTypeForFunction :: IrType -> IrType -> IrType
 llvmTypeForFunction paramType returnType =
@@ -48,14 +41,9 @@ llvmType (TyApp (TyCon (MkId "FloatArray")) _) =
     ptr $ StructureType False [i32, ptr double]
 llvmType (TyCon (MkId "()")) =
     StructureType False []
--- temp, should be no tyvars after rewriting
-llvmType (TyVar _) = double
 -- temp, only float ref
-llvmType (TyApp (TyCon (MkId "Ref")) _) =
-  ptr $ StructureType False [double]
--- temp, only float ref
-llvmType (TyApp (TyApp (TyCon (MkId "Ref")) _) _) =
-  ptr $ StructureType False [double]
+llvmType (TyApp (TyApp (TyCon (MkId "Ref")) _) ty) =
+  ptr $ StructureType False [llvmType ty]
 llvmType (TyCon (MkId "Int")) = i32
 llvmType (TyCon (MkId "Float")) = double
 llvmType (TyCon (MkId "Char")) = i8
@@ -69,3 +57,11 @@ llvmType ty = error $ "Cannot lower the type " ++ show ty
 llvmTopLevelType :: GrType -> IrType
 llvmTopLevelType (FunTy _ _ from to) = llvmTypeForFunction (llvmType from) (llvmType to)
 llvmTopLevelType other = llvmType other
+
+refInnerTy :: GrType -> IrType
+refInnerTy (TyApp (TyApp (TyCon (MkId "Ref")) _) ty) = llvmType ty
+refInnerTy (Borrow _ ty) = refInnerTy ty
+refInnerTy (Box _ ty) = refInnerTy ty
+refInnerTy (Diamond _ ty) = refInnerTy ty
+refInnerTy (Star _ ty) = refInnerTy ty
+refInnerTy ty = error ("Unsupported ref ty:\n" ++ show ty)

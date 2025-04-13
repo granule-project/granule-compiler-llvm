@@ -4,38 +4,37 @@ module Language.Granule.Codegen.Builtins.Ref where
 
 import LLVM.AST.Type as IR
 import Language.Granule.Codegen.Builtins.Shared
+import Language.Granule.Codegen.Emit.LowerType (llvmType, refInnerTy)
+import Language.Granule.Syntax.Type as Gr
 
-newRefDef, swapRefDef, freezeRefDef, readRefDef :: Builtin
+newRefDef, swapRefDef, freezeRefDef, readRefDef :: Specialisable
 newRefDef =
-  Builtin "__newRef_1337257197337028798" [tyFloat] tyFloatRef impl
+  Specialisable "newRef" impl
   where
-    impl [val] = do
-      refPtr <- allocateStruct floatRefStruct
+    impl [valTy] [val] = do
+      refPtr <- allocateStruct (refStruct valTy)
       writeStruct refPtr 0 val
       return refPtr
 swapRefDef =
-  Builtin "__swapRef_4785688958494461927" [tyFloatRef, tyFloat] (tyPair (tyFloat, tyFloatRef)) impl
+  Specialisable "swapRef" impl
   where
-    impl [refPtr, newVal] = do
+    impl [refTy, valTy] [refPtr, newVal] = do
       prev <- readStruct refPtr 0
       writeStruct refPtr 0 newVal
-      makePair (IR.double, prev) (ptr floatRefStruct, refPtr)
+      makePair (llvmType valTy, prev) (ptr (refStruct valTy), refPtr)
 freezeRefDef =
-  Builtin "__freezeRef_4785688958494461927" [tyFloatRef] tyFloat impl
+  Specialisable "freezeRef" impl
   where
-    impl [refPtr] = do
+    impl _ [refPtr] = do
       val <- readStruct refPtr 0
       _ <- free refPtr
       return val
 readRefDef =
-  Builtin "__readRef_4785688958494461927" [tyFloatRef] (tyPair (tyFloat, tyFloatRef)) impl
+  Specialisable "readRef" impl
   where
-    impl [refPtr] = do
+    impl [refTy] [refPtr] = do
       val <- readStruct refPtr 0
-      makePair (IR.double, val) (ptr floatRefStruct, refPtr)
+      makePair (refInnerTy refTy, val) (ptr (llvmType refTy), refPtr)
 
-floatRefStruct :: IR.Type
-floatRefStruct = refStruct IR.double
-
-refStruct :: IR.Type -> IR.Type
-refStruct ty = StructureType False [ty]
+refStruct :: Gr.Type -> IR.Type
+refStruct ty = StructureType False [llvmType ty]

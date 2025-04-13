@@ -18,16 +18,16 @@ builtins =
     readFloatArrayDef,
     writeFloatArrayDef,
     lengthFloatArrayDef,
-    deleteFloatArrayDef,
-    newRefDef,
-    freezeRefDef,
-    swapRefDef,
-    readRefDef
+    deleteFloatArrayDef
   ]
 
 specialisable :: [Specialisable]
 specialisable =
-  [ useDef
+  [ useDef,
+    newRefDef,
+    freezeRefDef,
+    swapRefDef,
+    readRefDef
   ]
 
 monoBuiltinIds :: [Id]
