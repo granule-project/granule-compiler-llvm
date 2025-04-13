@@ -107,7 +107,11 @@ collect expr =
         AppTy s ty r e t -> error "TODO: AppTy"
         LetDiamond s ty r ps mt e1 e2 -> error "TODO: LetDiamond"
         TryCatch s ty r e p mt e1 e2 -> error "TODO: TryCatch"
-        Unpack s ty r tyVar var e1 e2 -> (fst $ inExpr (fst $ inExpr env e1) e2, ty)
+        Unpack s ty r tyVar var e1 e2 ->
+          let (env', _) = inExpr env e1
+              (env'', retTy) = inExpr env' e2
+              env''' = diff env'' ty retTy
+           in (env''', ty)
         Hole s ty r ids hs -> error "TODO: Hole"
 
     inVal :: Map.Map Id Type -> Value ev Type -> (Map.Map Id Type, Type)
