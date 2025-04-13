@@ -34,6 +34,7 @@ library
       Language.Granule.Codegen.Builtins.FloatArray
       Language.Granule.Codegen.Builtins.Ref
       Language.Granule.Codegen.Builtins.Shared
+      Language.Granule.Codegen.Builtins.Uniqueness
       Language.Granule.Codegen.Emit.EmitableDef
       Language.Granule.Codegen.Emit.EmitBuiltins
       Language.Granule.Codegen.Emit.EmitterState

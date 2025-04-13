@@ -2,6 +2,8 @@
 
 module Language.Granule.Codegen.Builtins.Extras where
 
+import LLVM.AST.Constant
+import LLVM.AST.Operand
 import LLVM.AST.Type as IR
 import LLVM.IRBuilder.Instruction
 import Language.Granule.Codegen.Builtins.Shared
@@ -32,3 +34,9 @@ useDef =
     Specialisable "use" impl
     where
         impl _ [val] = return val
+
+-- TODO: handle @
+dropFloatDef :: Builtin
+dropFloatDef = Builtin "drop@Float" [tyFloat] tyUnit impl
+    where
+    impl [val] = return $ ConstantOperand (Struct Nothing False [])

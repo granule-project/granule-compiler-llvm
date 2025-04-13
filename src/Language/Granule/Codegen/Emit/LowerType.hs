@@ -41,9 +41,10 @@ llvmType (TyApp (TyCon (MkId "FloatArray")) _) =
     ptr $ StructureType False [i32, ptr double]
 llvmType (TyCon (MkId "()")) =
     StructureType False []
--- temp, only float ref
 llvmType (TyApp (TyApp (TyCon (MkId "Ref")) _) ty) =
   ptr $ StructureType False [llvmType ty]
+-- rather than ignore as below we might use this in future
+llvmType (TyApp (TyApp (TyCon (MkId "Rename")) _) ty) = llvmType ty
 llvmType (TyCon (MkId "Int")) = i32
 llvmType (TyCon (MkId "Float")) = double
 llvmType (TyCon (MkId "Char")) = i8

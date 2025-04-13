@@ -1,0 +1,56 @@
+-- parallelWithMutation.gr without modules or vectors or paralellism
+
+data Bool = False | True
+
+fakePar : forall {id : Name, f : Fraction} . (() -> (Float, & f (FloatArray id))) -> (() -> (Float, & f (FloatArray id))) -> ((Float, & f (FloatArray id)), (Float, & f (FloatArray id)))
+fakePar f g =  let a = f ();
+                   b = g ()
+           in (a, b)
+
+sumFromTo : forall {id : Name, f : Fraction} . & f (FloatArray id) ->  !Int -> !Int -> (Float, & f (FloatArray id))
+sumFromTo array [i] [n] =
+  if i == n
+    then (0.0, array)
+    else
+      let (x, a) = readFloatArray array i;
+          (y, arr) = sumFromTo a [i+1] [n]
+      in  (x + y, arr)
+
+-- A reference to a droppable value can be written to without violating linearity
+writeRef : forall {id : Name} . Float -> & 1 (Ref id Float) -> & 1 (Ref id Float)
+writeRef x r = let
+    (y, r') = swapRef r x;
+    () = drop@Float y in r'
+
+parSum : forall {id id' : Name} . *(FloatArray id) -> *(Ref id' Float) -> *(Ref id' Float, FloatArray id)
+parSum array ref = let
+     ([n], array) : (!Int, *(FloatArray id))     = lengthFloatArray array;
+     compIn                                      = borrowPull (ref, array)
+  in withBorrow (\compIn ->
+                let (ref, array)      = borrowPush compIn;
+                    (array1, array2)  = split array;
+
+                    -- Compute in parallel
+                    ((x, array1), (y, array2)) =
+                                fakePar (\() -> sumFromTo array1 [0] [div n 2])
+                                        (\() -> sumFromTo array2 [div n 2] [n]);
+
+                    -- Update the reference
+                    ref'        = writeRef ((x : Float) + y) ref;
+                    compOut     = borrowPull (ref', join (array1, array2))
+
+                  in compOut) compIn
+
+main : Float
+main =
+  unpack <id , arr> = newFloatArray 4 in
+  let
+    arr' = writeFloatArray arr 0 10.0;
+    arr'' = writeFloatArray arr' 1 20.0;
+    arr''' = writeFloatArray arr'' 2 30.0;
+    arr'''' = writeFloatArray arr''' 3 40.0 in
+  unpack <id', ref> = newRef 0.0 in
+  let
+      (result, array) = borrowPush (parSum arr'''' ref);
+      () = deleteFloatArray array
+  in freezeRef result

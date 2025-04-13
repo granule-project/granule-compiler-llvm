@@ -4,6 +4,7 @@ import Language.Granule.Codegen.Builtins.Extras
 import Language.Granule.Codegen.Builtins.FloatArray
 import Language.Granule.Codegen.Builtins.Ref
 import Language.Granule.Codegen.Builtins.Shared
+import Language.Granule.Codegen.Builtins.Uniqueness
 import Language.Granule.Syntax.Identifiers (Id, mkId)
 
 builtins :: [Builtin]
@@ -18,7 +19,8 @@ builtins =
     readFloatArrayDef,
     writeFloatArrayDef,
     lengthFloatArrayDef,
-    deleteFloatArrayDef
+    deleteFloatArrayDef,
+    dropFloatDef
   ]
 
 specialisable :: [Specialisable]
@@ -27,7 +29,16 @@ specialisable =
     newRefDef,
     freezeRefDef,
     swapRefDef,
-    readRefDef
+    readRefDef,
+    uniqueReturnDef,
+    revealDef,
+    uniqueBindDef,
+    trustedBindDef,
+    withBorrowDef,
+    splitDef,
+    joinDef,
+    borrowPushDef,
+    borrowPullDef
   ]
 
 monoBuiltinIds :: [Id]
