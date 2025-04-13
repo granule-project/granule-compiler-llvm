@@ -21,20 +21,12 @@ import Language.Granule.Syntax.Type
 
 
 emitBuiltins :: (MonadModuleBuilder m) => [(Id, Type)] -> m ()
-emitBuiltins uses = do
-  let instances = foldMap (\(id, ty) -> [(b, id, ty) | b <- builtins, builtinId b == sourceName id]) uses
-  mapM_ emitInstance instances
+emitBuiltins uses = mapM_ emitBuiltin (monos ++ polys)
   where
-    emitInstance (builtin, Id s i, ty)
-      | s == i = emitBuiltin builtin
-      | otherwise = -- we change the internal name for specialisations
-          emitBuiltin
-            ( builtin
-                { builtinId = i,
-                  builtinArgTys = parameterTypes ty,
-                  builtinRetTy = resultType ty
-                }
-            )
+    monos =
+      [b | (id, _) <- uses, b <- builtins, builtinId b == sourceName id]
+    polys =
+      [specialise b (internalName id) ty | (id, ty) <- uses, b <- specialisable, specialisableId b == sourceName id]
 
 emitBuiltin :: (MonadModuleBuilder m) => Builtin -> m Operand
 emitBuiltin builtin =
