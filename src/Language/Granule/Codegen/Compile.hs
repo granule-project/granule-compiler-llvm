@@ -10,14 +10,14 @@ import Language.Granule.Codegen.Emit.EmitLLVM
 import Language.Granule.Codegen.MarkGlobals
 import Language.Granule.Codegen.Monomorphise
 import Language.Granule.Codegen.RewriteAST
-import Language.Granule.Codegen.StripAST
+import Language.Granule.Codegen.SubstituteTypes
 
 import qualified LLVM.AST as IR
 
 compile :: String -> AST () Type -> Either String IR.Module
 compile moduleName typedAST =
-  let stripped       = stripAST typedAST
-      rewritten      = rewriteAST stripped
+  let substituted    = substituteTypes typedAST
+      rewritten      = rewriteAST substituted
       monomorphised  = monomorphiseAST rewritten
       normalised     = normaliseDefinitions monomorphised
       markedGlobals  = markGlobals normalised

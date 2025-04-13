@@ -22,8 +22,12 @@ builtins =
     newRefDef,
     freezeRefDef,
     swapRefDef,
-    readRefDef
+    readRefDef,
+    useDef
   ]
 
 builtinIds :: [Id]
 builtinIds = map (mkId . builtinId) builtins
+
+polyBuiltinIds :: [Id]
+polyBuiltinIds = map (mkId . builtinId) [useDef]

@@ -65,4 +65,5 @@ fmtStrForTy x =
         (TyApp (TyCon (Id "FloatArray" _)) _) -> "<array>"
         (TyCon (Id "()" _)) -> "()"
         (TyExists _ _ (Borrow _ ty)) -> "*" ++ fmtStrForTy ty
+        (Box _ ty) -> "[" ++ fmtStrForTy ty ++ "]"
         _ -> error ("Unsupported Main type: " ++ show x)

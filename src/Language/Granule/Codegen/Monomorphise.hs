@@ -2,10 +2,9 @@ module Language.Granule.Codegen.Monomorphise (monomorphiseAST) where
 
 import Control.Monad.Identity (runIdentity)
 import Data.Bifunctor (Bifunctor (bimap), second)
-import Data.Foldable (find)
 import Data.Hashable (hash)
 import qualified Data.Map as Map
-import Data.Maybe (fromMaybe)
+import Language.Granule.Codegen.Builtins.Builtins (polyBuiltinIds)
 import Language.Granule.Syntax.Annotated (annotation)
 import Language.Granule.Syntax.Def
 import Language.Granule.Syntax.Expr hiding (subst)
@@ -16,8 +15,8 @@ import Language.Granule.Syntax.Type
 -- polymorphic id -> [monomorphic id, [(ty var, ty subst)]]
 type PolyInstances = Map.Map Id [(Id, [(Id, Type)])]
 
--- polymorphic id -> [ty var]
-type PolyFuncs = Map.Map Id [Id]
+-- polymorphic id -> ty
+type PolyFuncs = Map.Map Id Type
 
 -- temporary
 polyBuiltins :: PolyInstances
@@ -39,8 +38,8 @@ monomorphiseAST ast =
   let polymorphicFuncs = getPolymorphicFunctions ast
       env = collectInstances ast polymorphicFuncs
    in if null env
-        then
-          let rewritten = rewriteCalls ast polyBuiltins
+        then -- we still need to rewrite builtins
+          let rewritten = rewriteCalls ast Map.empty
            in rewritten {definitions = filter (not . isPolymorphic) (definitions rewritten)}
         else
           let monoDefs = makeMonoDefs ast env
@@ -55,20 +54,18 @@ isPolymorphic def =
 -- e.g. id -> __id_3856
 makeMonoId :: Id -> Type -> Id
 makeMonoId (Id id _) ty =
-  let name = "__" ++ id ++ "_" ++ show (abs $ hash $ show ty)
-   in Id name name
+  let monoId = "__" ++ id ++ "_" ++ show (abs $ hash $ show ty)
+   in Id id monoId
 
 -- create map of polymorphic function id to its ty vars
 getPolymorphicFunctions :: AST ev Type -> PolyFuncs
 getPolymorphicFunctions ast =
   Map.fromList $ map getPolyInfo $ filter isPolymorphic $ definitions ast
   where
-    getPolyInfo :: Def ev Type -> (Id, [Id])
+    getPolyInfo :: Def ev Type -> (Id, Type)
     getPolyInfo def =
       case defTypeScheme def of
-        Forall _ bindings _ _ ->
-          let tyVars = map fst bindings
-           in (defId def, tyVars)
+        Forall _ _ _ ty -> (defId def, ty)
 
 -- collect all insts of polymorphic functions with their concrete type substitutions
 collectInstances :: AST ev Type -> PolyFuncs -> PolyInstances
@@ -83,7 +80,7 @@ collectInstances ast fns =
 
     collectExpr :: Expr ev Type -> PolyInstances
     collectExpr (App _ _ _ e1 e2) =
-      let inst = case getPolymorphicCall fns e1 e2 of
+      let inst = case getPolymorphicCall fns e1 of
             Just (id, tyVarSubsts) ->
               Map.singleton id [(makeMonoId id (annotation e2), tyVarSubsts)]
             Nothing -> Map.empty
@@ -113,45 +110,38 @@ collectInstances ast fns =
     collectExprs = foldr (Map.unionWith (++) . collectExpr) Map.empty
 
 -- identify polymorphic function calls and get substitution info
-getPolymorphicCall :: PolyFuncs -> Expr ev Type -> Expr ev Type -> Maybe (Id, [(Id, Type)])
-getPolymorphicCall fns (Val _ ty1 _ (Var ty2 id)) _ =
+getPolymorphicCall :: PolyFuncs -> Expr ev Type -> Maybe (Id, [(Id, Type)])
+getPolymorphicCall fns (Val _ _ _ (Var ty id)) =
   case Map.lookup id fns of
-    Just ids ->
-      let substs = matchTyVars ids ty2 ty1
+    Just param ->
+      let substs = match param ty
        in if null substs
             then Nothing
             else Just (id, substs)
     Nothing -> Nothing
-getPolymorphicCall _ _ _ = Nothing
+getPolymorphicCall _ _ = Nothing
 
-matchTyVars :: [Id] -> Type -> Type -> [(Id, Type)]
-matchTyVars actualIds t1 t2 =
-  fixIds (match t1 t2) actualIds
-  where
-    fixIds subs vars = [(findVar id vars, typ) | (id, typ) <- subs]
-    findVar id vars = fromMaybe id $ find (matchId id) vars
-    -- e.g. (Id a.1 a.1) == (Id a a`0)
-    matchId id var = takeWhile (/= '.') (internalName id) == sourceName var
+match :: Type -> Type -> [(Id, Type)]
+match param arg = case (param, arg) of
+  (TyVar _, TyVar _) -> []
+  (TyVar id, ty) -> [(id, ty)]
+  (FunTy _ _ a b, FunTy _ _ a' b') -> match2 a a' b b'
+  (TyApp a b, TyApp a' b') -> match2 a a' b b'
+  (Box _ a, Box _ a') -> match a a'
+  (Diamond _ a, Diamond _ a') -> match a a'
+  (Star _ a, Star _ a') -> match a a'
+  (Borrow _ a, Borrow _ a') -> match a a'
+  (TySig a _, TySig a' _) -> match a a'
+  (TyInfix _ a b, TyInfix _ a' b') -> match2 a a' b b'
+  (TyExists _ _ a, TyExists _ _ a') -> match a a'
+  (TyForall _ _ a, TyForall _ _ a') -> match a a'
+  (TyCase a as, TyCase a' as') -> match a a' ++ concat [match2 a a' b b' | ((a, b), (a', b')) <- zip as as']
+  (TySet _ ts, TySet _ ts') -> concat (zipWith match ts ts')
+  (TyGrade (Just t) _, TyGrade (Just t') _) -> match t t'
+  _ -> []
 
-    match t1 t2 = case (t1, t2) of
-      (TyVar _, TyVar _) -> []
-      (TyVar id, ty) -> [(id, ty)]
-      (FunTy _ _ a b, FunTy _ _ a' b') -> match2 a a' b b'
-      (TyApp a b, TyApp a' b') -> match2 a a' b b'
-      (Box _ a, Box _ a') -> match a a'
-      (Diamond _ a, Diamond _ a') -> match a a'
-      (Star _ a, Star _ a') -> match a a'
-      (Borrow _ a, Borrow _ a') -> match a a'
-      (TySig a _, TySig a' _) -> match a a'
-      (TyInfix _ a b, TyInfix _ a' b') -> match2 a a' b b'
-      (TyExists _ _ a, TyExists _ _ a') -> match a a'
-      (TyForall _ _ a, TyForall _ _ a') -> match a a'
-      (TyCase a as, TyCase a' as') -> match a a' ++ concat [match2 a a' b b' | ((a, b), (a', b')) <- zip as as']
-      (TySet _ ts, TySet _ ts') -> concat (zipWith match ts ts')
-      (TyGrade (Just t) _, TyGrade (Just t') _) -> match t t'
-      _ -> []
-
-    match2 a a' b b' = match a a' ++ match b b'
+match2 :: Type -> Type -> Type -> Type -> [(Id, Type)]
+match2 a a' b b' = match a a' ++ match b b'
 
 -- create monomorphised definitions for all polymorphic function insts
 makeMonoDefs :: AST ev Type -> PolyInstances -> [Def ev Type]
@@ -236,7 +226,8 @@ rewriteCalls ast env = ast {definitions = map rewriteDef (definitions ast)}
           newF = case rewrittenF of
             Val s' t' r' (Var vt id) ->
               -- Only rewrite if this is a polymorphic function in our map
-              if Map.member id env
+              -- or polymorphic builtin
+              if Map.member id env || id `elem` polyBuiltinIds
                 then
                   let argTy = annotation rewrittenArg
                       ty' = FunTy Nothing Nothing argTy ty

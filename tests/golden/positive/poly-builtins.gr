@@ -1,0 +1,11 @@
+use' : forall {a : Type} . a -> a [1]
+use' x = use x
+
+use2 : forall {a b : Type} . (a, b) -> (a [1], b [1])
+use2 (x, y) = (use x, use y)
+
+main : ((Float [1]) [1], (Int [1]) [1])
+main =
+    let a = use' 42.0;
+        b = use' 100 in
+    use2 (a, b)

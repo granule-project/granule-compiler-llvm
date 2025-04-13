@@ -25,3 +25,12 @@ divDef =
         args = [TyCon (Id "Int" "Int"), TyCon (Id "Int" "Int")]
         ret = TyCon (Id "Int" "Int")
         impl [x, y] = sdiv x y
+
+-- use :: a -> a [1]
+useDef :: Builtin
+useDef =
+    Builtin "use" args ret impl
+    where
+        args = [Gr.tyVar "a"]
+        ret = Box (TyGrade Nothing 1) (Gr.tyVar "a")
+        impl [val] = return val
