@@ -27,10 +27,8 @@ divDef =
         impl [x, y] = sdiv x y
 
 -- use :: a -> a [1]
-useDef :: Builtin
+useDef :: Specialisable
 useDef =
-    Builtin "use" args ret impl
+    Specialisable "use" impl
     where
-        args = [Gr.tyVar "a"]
-        ret = Box (TyGrade Nothing 1) (Gr.tyVar "a")
-        impl [val] = return val
+        impl _ [val] = return val
