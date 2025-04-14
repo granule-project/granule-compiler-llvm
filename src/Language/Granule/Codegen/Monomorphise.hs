@@ -5,6 +5,7 @@ import Data.Bifunctor (Bifunctor (bimap), second)
 import Data.Hashable (hash)
 import qualified Data.Map as Map
 import Language.Granule.Codegen.Builtins.Builtins (polyBuiltinIds)
+import Language.Granule.Codegen.SubstituteTypes
 import Language.Granule.Syntax.Annotated (annotation)
 import Language.Granule.Syntax.Def
 import Language.Granule.Syntax.Expr hiding (subst)
@@ -39,7 +40,7 @@ monomorphiseAST ast =
       env = collectInstances ast polymorphicFuncs
    in if null env
         then -- we still need to rewrite builtins
-          let rewritten = rewriteCalls ast Map.empty
+          let rewritten = rewriteCalls (substituteTypes ast) Map.empty
            in rewritten {definitions = filter (not . isPolymorphic) (definitions rewritten)}
         else
           let monoDefs = makeMonoDefs ast env
