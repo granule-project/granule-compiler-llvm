@@ -53,6 +53,7 @@ llvmType (TyCon (MkId "Bool")) = i1
 llvmType (Box coeffect ty) = llvmType ty
 llvmType (TyExists _ _ ty) = llvmType ty
 llvmType (Borrow _ ty) = llvmType ty
+llvmType (TyApp (TyCon (MkId "LChan")) _) = ptr $ StructureType False []
 llvmType ty = error $ "Cannot lower the type " ++ show ty
 
 llvmTopLevelType :: GrType -> IrType
