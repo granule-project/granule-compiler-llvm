@@ -39,10 +39,8 @@ sendDef =
   Specialisable "send" impl
   where
     impl [ct, ft] [c, f] = do
-      let ty = getTy ct
-      c' <- bitcast c (ptr $ chanStruct ty)
-      writeStruct c' 0 f
-      return c'
+      writeStruct c 0 f
+      return c
 
 --- (LChan (Recv a s)) -> (a, LChan s)
 recvDef :: Specialisable
@@ -51,9 +49,8 @@ recvDef =
   where
     impl [ct] [c] = do
       let ty = getTy ct
-      c' <- bitcast c (ptr $ chanStruct ty)
-      val <- readStruct c' 0
-      makePair (llvmType ty, val) (ptr $ chanStruct ty, c')
+      val <- readStruct c 0
+      makePair (llvmType ty, val) (ptr $ chanStruct ty, c)
 
 --- (LChan End) -> ()
 closeDef :: Specialisable
