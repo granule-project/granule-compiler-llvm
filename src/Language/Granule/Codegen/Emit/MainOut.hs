@@ -34,7 +34,8 @@ loadMainValue mainTy = load mainRef 4
 emitMainOut :: (MonadModuleBuilder m) => GrType -> m Operand
 emitMainOut ty =
     function "internal_mainOut" [(llvmType ty, mkPName "x")] void $ \[x] -> do
-        _ <- emitPrint ty [x]
+        _ <- emitPrint ty x
+        _ <- printFmt "\n" []
         retVoid
 
 mainOut :: GrType -> Constant
@@ -43,27 +44,42 @@ mainOut ty = GlobalReference functionType name
         name = mkName "internal_mainOut"
         functionType = ptr (FunctionType void [llvmType ty] False)
 
-emitPrint :: (MonadModuleBuilder m, MonadIRBuilder m) => GrType -> [Operand] -> m Operand
-emitPrint ty vals = do
-    let str = fmtStrForTy ty ++ "\n"
-    let strLen = length str + 1 -- newline 2 chars
-    fmt <- globalStringPtr str (mkName "internal_mainOut.fmtStr")
-    let fmtPtr = IR.ConstantOperand $ C.GetElementPtr True
-                    (GlobalReference (ptr (ArrayType (fromIntegral strLen) i8)) "internal_mainOut.fmtStr")
-                    [C.Int 32 0, C.Int 32 0]
-    let args = (fmtPtr, []) : map (\v -> (v, [])) vals
-    _ <- call (IR.ConstantOperand printf) args
-    return fmtPtr
+emitPrint :: (MonadModuleBuilder m, MonadIRBuilder m) => GrType -> Operand -> m Operand
+emitPrint ty val = case ty of
+    (TyCon (Id "Int" _)) -> printFmt "%d" [val]
+    (TyCon (Id "Float" _)) -> printFmt "%.6f" [val]
+    (TyCon (Id "Char" _)) -> printFmt "'%c'" [val]
+    (TyCon (Id "()" _)) -> printFmt "()" []
+    (TyApp (TyCon (Id "FloatArray" _)) _) -> printFmt "<array>" []
+    (TyApp (TyApp (TyCon (Id "," _)) leftTy) rightTy) -> do
+        left <- extractValue val [0]
+        right <- extractValue val [1]
+        _ <- printFmt "(" []
+        _ <- emitPrint leftTy left
+        _ <- printFmt ", " []
+        _ <- emitPrint rightTy right
+        printFmt ")" []
+    (TyCon (Id "String" _)) -> do
+        lenPtr <- gep val [int32 0, int32 0]
+        len <- load lenPtr 4
+        elemsPtr <- gep val [int32 0, int32 1]
+        elems <- load elemsPtr 8
+        printFmt "\"%.*s\"" [len, elems]
+    (Box _ ty) -> do
+        _ <- printFmt "[" []
+        _ <- emitPrint ty val
+        printFmt "]" []
+    _ -> error "Unsupported"
 
-fmtStrForTy :: GrType -> String
-fmtStrForTy x =
-    case x of
-        (TyCon (Id "Int" _)) -> "%d"
-        (TyCon (Id "Float" _)) -> "%.6f"
-        (TyApp (TyApp (TyCon (Id "," _)) leftTy) rightTy) ->
-            "(" ++ fmtStrForTy leftTy ++ ", " ++ fmtStrForTy rightTy ++ ")"
-        (TyApp (TyCon (Id "FloatArray" _)) _) -> "<array>"
-        (TyCon (Id "()" _)) -> "()"
-        (TyExists _ _ (Borrow _ ty)) -> "*" ++ fmtStrForTy ty
-        (Box _ ty) -> "[" ++ fmtStrForTy ty ++ "]"
-        _ -> error ("Unsupported Main type: " ++ show x)
+printFmt :: (MonadModuleBuilder m, MonadIRBuilder m) => String -> [Operand] -> m Operand
+printFmt fmt args = do
+    let name = mkName $ "fmt." ++ fmt
+    fmtPtr <- mkFmtPtr fmt name (length fmt + 1)
+    call (IR.ConstantOperand printf) ((fmtPtr, []) : map (\a -> (a, [])) args)
+
+mkFmtPtr :: (MonadModuleBuilder m, MonadIRBuilder m) => String -> IR.Name -> Int -> m Operand
+mkFmtPtr str name len = do
+    _ <- globalStringPtr str name
+    return $ IR.ConstantOperand $ C.GetElementPtr True
+              (GlobalReference (ptr (ArrayType (fromIntegral len) i8)) name)
+              [C.Int 32 0, C.Int 32 0]

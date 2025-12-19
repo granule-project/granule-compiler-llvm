@@ -13,6 +13,9 @@ import Data.Char (ord)
 import LLVM.AST.Constant (Constant)
 import qualified LLVM.AST.Constant as C
 import qualified LLVM.AST.Linkage as L
+import LLVM.IRBuilder
+import Language.Granule.Codegen.Emit.Primitives (malloc)
+import Control.Monad (forM_)
 
 -- | Define and emit a (non-variadic) internal function definition
 privateFunction
@@ -61,6 +64,28 @@ charConstant ch =
 stringConstant :: String -> Constant
 stringConstant str =
     C.Vector (map charConstant str)
+
+allocateString :: MonadModuleBuilder m => MonadIRBuilder m => String -> m Operand
+allocateString str = do
+  -- [len, char*]
+  let structTy = StructureType False [i32, ptr i8]
+  strPtr <- call (ConstantOperand malloc) [(ConstantOperand $ sizeOf structTy, [])]
+  strPtr' <- bitcast strPtr (ptr structTy)
+  lenField <- gep strPtr' [int32 0, int32 0]
+  dataField <- gep strPtr' [int32 0, int32 1]
+
+  -- store the length
+  let len = int32 $ fromIntegral $ length str
+  store lenField 0 len
+
+  -- store the chars
+  dataPtr <- call (ConstantOperand malloc) [(len, [])]
+  forM_ (zip [0..] str) $ \(i, ch) -> do
+      dataPtr' <- gep dataPtr [int32 $ fromIntegral i]
+      store dataPtr' 0 (int8 $ fromIntegral $ ord ch)
+  store dataField 0 dataPtr
+
+  return strPtr
 
 intConstant :: Int -> Constant
 intConstant n =
