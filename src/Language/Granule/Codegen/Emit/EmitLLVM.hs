@@ -45,6 +45,8 @@ emitLLVM moduleName (ClosureFreeAST dataDecls functionDefs valueDefs) =
         _ <- extern (mkName "malloc") [i64] (ptr i8)
         _ <- extern (mkName "abort") [] void
         _ <- externVarArgs (mkName "printf") [ptr i8] i32
+        _ <- extern (mkName "llvm.memcpy.p0.p0.i32") [ptr i8, ptr i8, i32, i1] void
+        _ <- extern (mkName "free") [ptr i8] void
         _ <- emitBuiltins
         let mainTy = findMainReturnType valueDefs
         _ <- emitMainOut mainTy
