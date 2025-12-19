@@ -7,7 +7,7 @@ import Data.Maybe (fromJust)
 
 import Language.Granule.Codegen.Emit.EmitterState
 import Language.Granule.Codegen.Emit.Types (IrType, GrType)
-import Language.Granule.Codegen.Emit.LowerType (llvmTypeForEnvironment, llvmTopLevelType, llvmType)
+import Language.Granule.Codegen.Emit.LowerType (llvmTopLevelType, llvmType)
 import Language.Granule.Codegen.Emit.Names
 import Language.Granule.Codegen.Emit.LLVMHelpers
 import Language.Granule.Codegen.Emit.Primitives (malloc)
@@ -57,11 +57,6 @@ emitClosureMarker ty maybeParentEnv (MakeClosure ident initializer) =
         emitClosureConstruction ident ty environmentVoidPtr
 emitClosureMarker ty _ (MakeTrivialClosure identifier) =
     return $ ConstantOperand $ makeTrivialClosure identifier ty
-
-emitClosureMarker ty _ (MakeBuiltinClosure ident) = do
-    let functionPtr = ConstantOperand $ C.GlobalReference (ptr $ llvmTopLevelType ty) (functionNameFromId ident)
-    closure <- insertValue (ConstantOperand $ C.Undef (llvmType ty)) functionPtr [0]
-    insertValue closure (ConstantOperand $ C.Null (ptr i8)) [1]
 
 emitEnvironmentInit :: (MonadModuleBuilder m, MonadIRBuilder m, MonadState EmitterState m)
                     => [ClosureVariableInit]
@@ -126,3 +121,9 @@ emitTrivialClosure (definitionIdentifier, definitionType) =
 mallocEnvironment :: (MonadIRBuilder m, MonadModuleBuilder m) => IrType -> m Operand
 mallocEnvironment ty =
     call (ConstantOperand malloc) [(ConstantOperand $ sizeOf ty, [])]
+
+llvmTypeForEnvironment :: ClosureEnvironmentType -> IrType
+llvmTypeForEnvironment (TyClosureEnvironment captureTypes) =
+    StructureType {
+        isPacked = False,
+        elementTypes = map llvmType captureTypes }

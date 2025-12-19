@@ -5,7 +5,7 @@ import Language.Granule.Syntax.Type
 import Language.Granule.Syntax.Identifiers
 import Language.Granule.Syntax.Pretty
 import Data.Bifunctor.Foldable
-import Language.Granule.Codegen.Builtins (builtinIds)
+import Language.Granule.Codegen.Builtins.Builtins (builtinIds)
 
 data GlobalMarker =
     GlobalVar Type Id
@@ -35,7 +35,8 @@ markGlobalsInExpr :: [Id] -> Expr () Type -> Expr GlobalMarker Type
 markGlobalsInExpr globals =
     bicata fixMapExtExpr markInValue
     where markInValue (VarF ty ident)
-              | ident `elem` builtinIds = Ext ty (BuiltinVar ty ident)
+              | any (\id -> sourceName ident == sourceName id) builtinIds =
+                  Ext ty (BuiltinVar ty ident)
               | ident `elem` globals = Ext ty (GlobalVar ty ident)
               | otherwise = Var ty ident
           markInValue other =

@@ -1,0 +1,27 @@
+curry : forall {a : Type, b : Type, c : Type} .
+        (a × b -> c) -> a -> b -> c
+curry f x y = f (x, y)
+
+uncurry : forall {a : Type, b : Type, c : Type} .
+          (a -> b -> c) -> (a × b -> c)
+uncurry f (x, y) = f x y
+
+addInt : (Int, Int) -> Int
+addInt (x, y) = x + y
+
+addFloat : (Float, Float) -> Float
+addFloat (x, y) = x + y
+
+intDrop : forall {a : Type} . Int -> a [0] -> Int
+intDrop x [_] = x
+
+floatDrop : forall {a : Type} . a [0] -> Float -> Float
+floatDrop [_] x = x
+
+swap : forall {a : Type, b : Type} . (a, b) -> (b, a)
+swap (x, y) = (y, x)
+
+main : (Int, Float)
+main =  let addInt4   = curry addInt 4;
+            addFloat4 = curry addFloat 4.0 in
+        swap (swap (addInt4 (intDrop 96 [2000]), addFloat4 (floatDrop [1000] 38.0)))

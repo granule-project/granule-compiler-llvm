@@ -1,0 +1,6 @@
+hello : String
+hello = stringSnoc "hell" (charFromInt 111)
+
+
+main : String
+main = stringAppend hello (stringCons ' ' "world")

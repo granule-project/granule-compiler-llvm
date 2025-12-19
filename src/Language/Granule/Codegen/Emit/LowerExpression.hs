@@ -5,14 +5,14 @@ module Language.Granule.Codegen.Emit.LowerExpression where
 import Language.Granule.Codegen.ClosureFreeDef (ClosureMarker)
 import Language.Granule.Codegen.MarkGlobals (GlobalMarker, GlobalMarker(..))
 import Language.Granule.Codegen.Emit.LowerOperator
-import Language.Granule.Codegen.Emit.LowerType (llvmType)
+import Language.Granule.Codegen.Emit.LowerType (llvmType, llvmTopLevelType)
 import Language.Granule.Codegen.Emit.EmitableDef
 import Language.Granule.Codegen.Emit.LowerPatterns (emitCaseArm)
 import Language.Granule.Codegen.Emit.LowerClosure (emitClosureMarker)
 import Language.Granule.Codegen.Emit.EmitterState
 import Language.Granule.Codegen.Emit.Names
 import Language.Granule.Codegen.Emit.Primitives (trap)
-import Language.Granule.Codegen.Emit.LLVMHelpers (stringConstant, charConstant)
+import Language.Granule.Codegen.Emit.LLVMHelpers (charConstant, allocateString)
 
 import Language.Granule.Syntax.Expr
 import Language.Granule.Syntax.Annotated (annotation)
@@ -29,7 +29,7 @@ import LLVM.IRBuilder.Monad
 import LLVM.IRBuilder.Instruction
 
 import LLVM.AST (Operand)
-import LLVM.AST.Type (ptr)
+import LLVM.AST.Type (ptr, i8)
 import LLVM.AST.Constant as C
 import qualified LLVM.IRBuilder.Constant as IC
 import qualified LLVM.AST as IR
@@ -131,13 +131,17 @@ emitValue _ (NumIntF n) = return $ IC.int32 (toInteger n)
 emitValue _ (NumFloatF n) = return $ IC.double n
 emitValue _ (CharLiteralF ch) =
     return $ IR.ConstantOperand (charConstant ch)
-emitValue _ (StringLiteralF str) =
-    return $ IR.ConstantOperand (stringConstant $ unpack str)
+-- allocate strings as we do with float arrays
+-- TODO: better handling for constants/literals
+emitValue _ (StringLiteralF str) = allocateString (unpack str)
 emitValue _ (ExtF a (Left (GlobalVar ty ident))) = do
     let ref = IR.ConstantOperand $ C.GlobalReference (ptr (llvmType ty)) (definitionNameFromId ident)
     load ref 4
 emitValue _ (ExtF a (Left (BuiltinVar ty ident))) = do
-    error "TODO?"
+    useBuiltin ident ty
+    let functionPtr = IR.ConstantOperand $ C.GlobalReference (ptr $ llvmTopLevelType ty) (IR.mkName $ "fn." ++ internalName ident)
+    closure <- insertValue (IR.ConstantOperand $ C.Undef (llvmType ty)) functionPtr [0]
+    insertValue closure (IR.ConstantOperand $ C.Null (ptr i8)) [1]
 emitValue environment (ExtF ty (Right cm)) =
     emitClosureMarker ty environment cm
 {- TODO: Support tagged unions, also affects Case.

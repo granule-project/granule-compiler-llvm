@@ -54,7 +54,6 @@ data ClosureMarker =
     CapturedVar Type Id Int
     | MakeClosure Id ClosureEnvironmentInit
     | MakeTrivialClosure Id
-    | MakeBuiltinClosure Id
     deriving (Show, Eq)
 
 data ClosureFreeAST =
@@ -84,4 +83,3 @@ instance Pretty ClosureMarker where
                 "env(ident = \"" ++ envName ++ "\", " ++ intercalate ", " (map prettyEnvVar varInits) ++ ")"
         in "make-closure(" ++ pretty ident ++ ", " ++ prettyEnv env ++ ")"
     pretty (MakeTrivialClosure ident) = pretty ident
-    pretty (MakeBuiltinClosure ident) = pretty ident

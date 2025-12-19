@@ -4,7 +4,10 @@ module Language.Granule.Codegen.Emit.LowerPatterns where
 
 import Control.Monad.State.Strict hiding (void)
 
+import Language.Granule.Syntax.Identifiers
 import Language.Granule.Syntax.Pattern
+import Language.Granule.Syntax.Type
+
 import Language.Granule.Codegen.Emit.EmitterState
 import Language.Granule.Codegen.Emit.EmitableDef
 import Language.Granule.Codegen.Emit.LLVMHelpers
@@ -38,6 +41,15 @@ emitPattern successLabel failLabel matchOperand (PVar _ _ _ ident) =
     do
         addLocal ident matchOperand
         br successLabel
+
+-- can be replaced with an ADT implementation
+emitPattern successLabel failLabel matchOperand (PConstr _ (TyCon (Id "Bool" "Bool")) _ id _ _) =
+    do
+        matches <- icmp IP.EQ (getBit id) matchOperand
+        condBr matches successLabel failLabel
+    where
+        getBit (Id "True" "True") = IC.bit 1
+        getBit _ = IC.bit 0
 
 emitPattern successLabel failLabel matchOperand (PBox _ _ ty pat) =
     emitPattern successLabel failLabel matchOperand pat
