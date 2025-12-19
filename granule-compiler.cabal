@@ -34,6 +34,7 @@ library
       Language.Granule.Codegen.Builtins.Extras
       Language.Granule.Codegen.Builtins.FloatArray
       Language.Granule.Codegen.Builtins.Ref
+      Language.Granule.Codegen.Builtins.Session
       Language.Granule.Codegen.Builtins.Shared
       Language.Granule.Codegen.Builtins.String
       Language.Granule.Codegen.Builtins.Uniqueness

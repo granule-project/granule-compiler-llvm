@@ -4,6 +4,7 @@ import Language.Granule.Codegen.Builtins.Char
 import Language.Granule.Codegen.Builtins.Extras
 import Language.Granule.Codegen.Builtins.FloatArray
 import Language.Granule.Codegen.Builtins.Ref
+import Language.Granule.Codegen.Builtins.Session
 import Language.Granule.Codegen.Builtins.Shared
 import Language.Granule.Codegen.Builtins.Uniqueness
 import Language.Granule.Codegen.Builtins.String
@@ -44,7 +45,11 @@ specialisable =
     splitDef,
     joinDef,
     borrowPushDef,
-    borrowPullDef
+    borrowPullDef,
+    forkLinearDef,
+    sendDef,
+    recvDef,
+    closeDef
   ]
 
 monoBuiltinIds :: [Id]

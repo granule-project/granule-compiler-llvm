@@ -2,10 +2,13 @@
 
 data Bool = False | True
 
-fakePar : forall {id : Name, f : Fraction} . (() -> (Float, & f (FloatArray id))) -> (() -> (Float, & f (FloatArray id))) -> ((Float, & f (FloatArray id)), (Float, & f (FloatArray id)))
-fakePar f g =  let a = f ();
-                   b = g ()
-           in (a, b)
+par : forall {a : Type, b : Type} . (() -> a) -> (() -> b) -> (a, b)
+par f g =
+    let c = forkLinear (\c' -> close (send c' (f ())));
+        b = g ();
+        (a, c') = recv c;
+        _ = close c'
+    in (a, b)
 
 sumFromTo : forall {id : Name, f : Fraction} . & f (FloatArray id) ->  !Int -> !Int -> (Float, & f (FloatArray id))
 sumFromTo array [i] [n] =
@@ -32,7 +35,7 @@ parSum array ref = let
 
                     -- Compute in parallel
                     ((x, array1), (y, array2)) =
-                                fakePar (\() -> sumFromTo array1 [0] [div n 2])
+                                par (\() -> sumFromTo array1 [0] [div n 2])
                                         (\() -> sumFromTo array2 [div n 2] [n]);
 
                     -- Update the reference

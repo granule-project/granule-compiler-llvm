@@ -54,6 +54,17 @@ llvmType (TyCon (MkId "Bool")) = i1
 llvmType (Box coeffect ty) = llvmType ty
 llvmType (TyExists _ _ ty) = llvmType ty
 llvmType (Borrow _ ty) = llvmType ty
+
+-- TODO: clean these up
+llvmType (TyApp (TyCon (MkId "LChan")) (TyCon (MkId "End"))) =
+    ptr $ StructureType False []
+llvmType (TyApp (TyCon (MkId "LChan")) (TyApp (TyCon (MkId "Dual")) (TyCon (MkId "End")))) =
+    ptr $ StructureType False []
+llvmType (TyApp (TyCon (MkId "LChan")) (TyApp (TyApp (TyCon (MkId "Send")) ty) (TyCon (MkId "End")))) =
+    ptr $ StructureType False [llvmType ty]
+llvmType (TyApp (TyCon (MkId "LChan")) (TyApp (TyCon (MkId "Dual")) (TyApp (TyApp (TyCon (MkId "Send")) ty) (TyCon (MkId "End"))))) =
+    ptr $ StructureType False [llvmType ty]
+
 llvmType ty = error $ "Cannot lower the type " ++ show ty
 
 llvmTopLevelType :: GrType -> IrType
