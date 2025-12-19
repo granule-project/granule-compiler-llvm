@@ -28,7 +28,7 @@ import Language.Granule.Codegen.NormalisedDef
 
 import Language.Granule.Syntax.Pattern (boundVars, Pattern(..))
 import Language.Granule.Syntax.Identifiers
-import Language.Granule.Syntax.Def (DataDecl)
+import Language.Granule.Syntax.Def (DataDecl (DataDecl))
 import Language.Granule.Syntax.Type hiding (Type)
 
 import Data.String (fromString)
@@ -155,5 +155,7 @@ maybeBitcastEnvironment environmentPointerUntyped =
       emitBitcast environmentType =
         bitcast environmentPointerUntyped (ptr environmentType)
 
-emitDataDecl :: {-(MonadModuleBuilder m) =>-} DataDecl -> m ()
-emitDataDecl = error "Cannot emit data decls yet!"
+-- we use bool internally but need the decl for type check
+emitDataDecl :: (MonadState EmitterState m) => DataDecl -> m ()
+emitDataDecl (DataDecl _ (Id "Bool" "Bool") _ _ _) = pure ()
+emitDataDecl _ = error "Cannot emit data decls yet!"
