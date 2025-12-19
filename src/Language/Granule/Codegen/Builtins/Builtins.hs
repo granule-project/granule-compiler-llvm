@@ -3,6 +3,7 @@ module Language.Granule.Codegen.Builtins.Builtins where
 import Language.Granule.Codegen.Builtins.Char
 import Language.Granule.Codegen.Builtins.Extras
 import Language.Granule.Codegen.Builtins.FloatArray
+import Language.Granule.Codegen.Builtins.Ref
 import Language.Granule.Codegen.Builtins.Shared
 import Language.Granule.Codegen.Builtins.String
 import Language.Granule.Syntax.Identifiers (Id, mkId)
@@ -28,7 +29,11 @@ builtins =
 
 specialisable :: [Specialisable]
 specialisable =
-  [ useDef
+  [ useDef,
+    newRefDef,
+    freezeRefDef,
+    swapRefDef,
+    readRefDef
   ]
 
 monoBuiltinIds :: [Id]

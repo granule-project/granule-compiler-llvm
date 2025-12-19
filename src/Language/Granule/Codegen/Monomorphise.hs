@@ -18,6 +18,16 @@ type PolyInstances = Map.Map Id [(Id, [(Id, Type)])]
 -- polymorphic id -> ty
 type PolyFuncs = Map.Map Id Type
 
+-- temporary
+polyBuiltins :: PolyInstances
+polyBuiltins =
+  Map.fromList
+    [ (Id "newRef" "newRef", []),
+      (Id "freezeRef" "freezeRef", []),
+      (Id "swapRef" "swapRef", []),
+      (Id "readRef" "readRef", [])
+    ]
+
 -- TODO:
 -- ensure fixed point
 -- more tests
@@ -33,7 +43,7 @@ monomorphiseAST ast =
            in rewritten {definitions = filter (not . isPolymorphic) (definitions rewritten)}
         else
           let monoDefs = makeMonoDefs ast env
-              rewritten = rewriteCalls ast env
+              rewritten = rewriteCalls ast (Map.union env polyBuiltins)
            in monomorphiseAST (rewritten {definitions = definitions rewritten ++ monoDefs})
 
 isPolymorphic :: Def ev Type -> Bool

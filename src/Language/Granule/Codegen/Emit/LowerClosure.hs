@@ -7,7 +7,7 @@ import Data.Maybe (fromJust)
 
 import Language.Granule.Codegen.Emit.EmitterState
 import Language.Granule.Codegen.Emit.Types (IrType, GrType)
-import Language.Granule.Codegen.Emit.LowerType (llvmTypeForEnvironment, llvmTopLevelType, llvmType)
+import Language.Granule.Codegen.Emit.LowerType (llvmTopLevelType, llvmType)
 import Language.Granule.Codegen.Emit.Names
 import Language.Granule.Codegen.Emit.LLVMHelpers
 import Language.Granule.Codegen.Emit.Primitives (malloc)
@@ -121,3 +121,9 @@ emitTrivialClosure (definitionIdentifier, definitionType) =
 mallocEnvironment :: (MonadIRBuilder m, MonadModuleBuilder m) => IrType -> m Operand
 mallocEnvironment ty =
     call (ConstantOperand malloc) [(ConstantOperand $ sizeOf ty, [])]
+
+llvmTypeForEnvironment :: ClosureEnvironmentType -> IrType
+llvmTypeForEnvironment (TyClosureEnvironment captureTypes) =
+    StructureType {
+        isPacked = False,
+        elementTypes = map llvmType captureTypes }
