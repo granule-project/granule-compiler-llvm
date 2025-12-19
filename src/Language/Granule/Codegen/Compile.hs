@@ -8,14 +8,18 @@ import Language.Granule.Codegen.TopsortDefinitions
 import Language.Granule.Codegen.ConvertClosures
 import Language.Granule.Codegen.Emit.EmitLLVM
 import Language.Granule.Codegen.MarkGlobals
+import Language.Granule.Codegen.Monomorphise
 import Language.Granule.Codegen.RewriteAST
+import Language.Granule.Codegen.SubstituteTypes
 
 import qualified LLVM.AST as IR
 
 compile :: String -> AST () Type -> Either String IR.Module
 compile moduleName typedAST =
-  let rewritten      = rewriteAST typedAST
-      normalised     = normaliseDefinitions rewritten
+  let substituted    = substituteTypes typedAST
+      rewritten      = rewriteAST substituted
+      monomorphised  = monomorphiseAST rewritten
+      normalised     = normaliseDefinitions monomorphised
       markedGlobals  = markGlobals normalised
       (Ok topsorted) = topologicallySortDefinitions markedGlobals
       closureFree    = convertClosures topsorted

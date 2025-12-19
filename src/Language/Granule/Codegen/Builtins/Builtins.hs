@@ -26,5 +26,16 @@ builtins =
     deleteFloatArrayDef
   ]
 
+specialisable :: [Specialisable]
+specialisable =
+  [ useDef
+  ]
+
+monoBuiltinIds :: [Id]
+monoBuiltinIds = map (mkId . builtinId) builtins
+
+polyBuiltinIds :: [Id]
+polyBuiltinIds = map (mkId . specialisableId) specialisable
+
 builtinIds :: [Id]
-builtinIds = map (mkId . builtinId) builtins
+builtinIds = monoBuiltinIds ++ polyBuiltinIds

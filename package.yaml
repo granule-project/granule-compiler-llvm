@@ -8,6 +8,7 @@ github: granule-project/granule-compiler-llvm
 dependencies:
   - base >=4.10 && <5
   - process
+  - hashable
 default-extensions:
   - LambdaCase
   - RecordWildCards

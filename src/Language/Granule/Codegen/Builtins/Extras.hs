@@ -15,3 +15,10 @@ divDef =
         args = [TyCon (Id "Int" "Int"), TyCon (Id "Int" "Int")]
         ret = TyCon (Id "Int" "Int")
         impl [x, y] = sdiv x y
+
+-- use :: a -> a [1]
+useDef :: Specialisable
+useDef =
+    Specialisable "use" impl
+    where
+        impl _ [val] = return val

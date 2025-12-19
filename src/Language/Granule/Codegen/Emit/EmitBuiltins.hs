@@ -6,7 +6,7 @@ import Control.Monad (forM)
 import LLVM.AST (Operand)
 import qualified LLVM.AST as IR
 import qualified LLVM.AST.Constant as C
-import LLVM.AST.Type hiding (Type)
+import LLVM.AST.Type hiding (resultType, Type)
 import LLVM.IRBuilder.Constant (int32)
 import LLVM.IRBuilder.Instruction
 import LLVM.IRBuilder.Module
@@ -16,9 +16,17 @@ import Language.Granule.Codegen.Builtins.Shared
 import Language.Granule.Codegen.Emit.LLVMHelpers
 import Language.Granule.Codegen.Emit.LowerClosure (mallocEnvironment)
 import Language.Granule.Codegen.Emit.LowerType (llvmType, llvmTypeForClosure, llvmTypeForFunction)
+import Language.Granule.Syntax.Identifiers
+import Language.Granule.Syntax.Type
 
-emitBuiltins :: (MonadModuleBuilder m) => m [Operand]
-emitBuiltins = mapM emitBuiltin builtins
+
+emitBuiltins :: (MonadModuleBuilder m) => [(Id, Type)] -> m ()
+emitBuiltins uses = mapM_ emitBuiltin (monos ++ polys)
+  where
+    monos =
+      [b | (id, _) <- uses, b <- builtins, builtinId b == sourceName id]
+    polys =
+      [specialise b (internalName id) ty | (id, ty) <- uses, b <- specialisable, specialisableId b == sourceName id]
 
 emitBuiltin :: (MonadModuleBuilder m) => Builtin -> m Operand
 emitBuiltin builtin =

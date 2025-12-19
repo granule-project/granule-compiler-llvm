@@ -65,6 +65,10 @@ emitPrint ty val = case ty of
         elemsPtr <- gep val [int32 0, int32 1]
         elems <- load elemsPtr 8
         printFmt "\"%.*s\"" [len, elems]
+    (Box _ ty) -> do
+        _ <- printFmt "[" []
+        _ <- emitPrint ty val
+        printFmt "]" []
     _ -> error "Unsupported"
 
 printFmt :: (MonadModuleBuilder m, MonadIRBuilder m) => String -> [Operand] -> m Operand

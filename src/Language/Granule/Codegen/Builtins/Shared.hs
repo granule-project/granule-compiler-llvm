@@ -1,5 +1,6 @@
 {-# LANGUAGE RankNTypes #-}
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 
 module Language.Granule.Codegen.Builtins.Shared where
 
@@ -20,6 +21,18 @@ data Builtin = Builtin {
     builtinArgTys :: [Gr.Type],
     builtinRetTy :: Gr.Type,
     builtinImpl :: forall m. (MonadModuleBuilder m, MonadIRBuilder m) => [Operand] -> m Operand}
+
+data Specialisable = Specialisable {
+    specialisableId :: String,
+    specialisableImpl ::  [Gr.Type] -> forall m. (MonadModuleBuilder m, MonadIRBuilder m) => [Operand] -> m Operand}
+
+specialise :: Specialisable -> String -> Gr.Type -> Builtin
+specialise builtin id ty = Builtin id args ret impl
+      where
+      args = Gr.parameterTypes ty
+      ret = Gr.resultType ty
+      {-# HLINT ignore "Eta reduce" #-} -- has to be lazy or we need IRBuilder early
+      impl xs = specialisableImpl builtin args xs
 
 -- LLVM helpers
 
